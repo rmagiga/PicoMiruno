@@ -109,7 +109,8 @@ class _ImageGridScreenState extends State<ImageGridScreen> {
                           MaterialPageRoute(
                             builder:
                                 (context) => FullScreenImage(
-                                  imagePath: displayedImages[index],
+                                  images: displayedImages,
+                                  initialIndex: index,
                                 ),
                           ),
                         );
