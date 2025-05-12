@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 class FullScreenImage extends StatelessWidget {
   final String imagePath;
@@ -9,7 +10,13 @@ class FullScreenImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('画像表示')),
-      body: Center(child: Image.asset(imagePath, fit: BoxFit.contain)),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 5.0,
+          child: Image.file(File(imagePath), fit: BoxFit.contain),
+        ),
+      ),
     );
   }
 }
