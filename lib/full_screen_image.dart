@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:mygallery/platform/image_service.dart';
 
 class FullScreenImage extends StatefulWidget {
-  final List<String> images;
+  final List<String> imagePaths;
   final int initialIndex;
 
   const FullScreenImage({
     super.key,
-    required this.images,
+    required this.imagePaths,
     required this.initialIndex,
   });
 
@@ -18,6 +18,7 @@ class FullScreenImage extends StatefulWidget {
 class _FullScreenImageState extends State<FullScreenImage> {
   late PageController _pageController;
   late int _currentIndex;
+  final _imageService = ImageServiceFactory.create();
 
   @override
   void initState() {
@@ -36,11 +37,11 @@ class _FullScreenImageState extends State<FullScreenImage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${_currentIndex + 1} / ${widget.images.length}'),
+        title: Text('${_currentIndex + 1} / ${widget.imagePaths.length}'),
       ),
       body: PageView.builder(
         controller: _pageController,
-        itemCount: widget.images.length,
+        itemCount: widget.imagePaths.length,
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
@@ -51,10 +52,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
             child: InteractiveViewer(
               minScale: 0.5,
               maxScale: 5.0,
-              child: Image.file(
-                File(widget.images[index]),
-                fit: BoxFit.contain,
-              ),
+              child: _imageService.getImageSync(widget.imagePaths[index]),
             ),
           );
         },

@@ -1,4 +1,6 @@
+import 'package:docman/docman.dart';
 import 'package:flutter/material.dart';
+import 'package:mygallery/platform/image_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -46,23 +48,26 @@ class _FolderListScreenState extends State<FolderListScreen> {
     });
   }
 
+  Future<DocumentFile?> pickDirectoryPath() => DocMan.pick.directory();
+
   Future<void> _addFolder() async {
-    String? selectedDirectory;
+    var imageService = ImageServiceFactory.create();
 
-    if (Platform.isWindows) {
-      selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    } else {
-      // SAFを使用してフォルダ選択を実装（Android用）
-      selectedDirectory = '/path/to/folder'; // 仮のフォルダパス
+    var fileEntry = await imageService.pickDirectoryPath();
+    if (fileEntry == null || fileEntry.isDirectory == false) {
+      // ユーザーがフォルダを選択しなかった場合の処理
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
+      return;
     }
 
-    if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _folders.add(selectedDirectory!);
-        prefs.setStringList('folders', _folders);
-      });
-    }
+    String selectedDirectory = fileEntry.path;
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _folders.add(selectedDirectory!);
+      prefs.setStringList('folders', _folders);
+    });
   }
 
   void _openFolder(String folderPath) {
