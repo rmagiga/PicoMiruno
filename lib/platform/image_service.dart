@@ -14,8 +14,8 @@ abstract class ImageService {
 }
 
 mixin ImageServiceImpl {
-  String getThumbnailPath(String imagePath) {
-    final cacheDir = Directory.systemTemp;
+  Future<String> getThumbnailPath(String imagePath) async {
+    final cacheDir = await getTemporaryDirectory();
     return '${cacheDir.path}/${imagePath.hashCode}_thumb.jpg';
   }
 

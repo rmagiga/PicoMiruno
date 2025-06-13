@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:mygallery/platform/file_entry.dart';
 import 'package:mygallery/platform/file_entry_windows.dart';
@@ -58,7 +59,7 @@ class WindowsImageService extends ImageService with ImageServiceImpl {
     String imagePath, {
     int size = 128,
   }) async {
-    final thumbnailPath = getThumbnailPath(imagePath);
+    final thumbnailPath = await getThumbnailPath(imagePath);
     final thumbnailByte = File(thumbnailPath);
     if (thumbnailByte.existsSync()) {
       return await thumbnailByte.readAsBytes();
@@ -73,6 +74,8 @@ class WindowsImageService extends ImageService with ImageServiceImpl {
     if (image == null) throw Exception('画像のデコードに失敗しました');
 
     final thumbnail = img.copyResize(image, width: size);
-    return Uint8List.fromList(img.encodeJpg(thumbnail));
+    final jpgBytes = img.encodeJpg(thumbnail);
+    await File(thumbnailPath).writeAsBytes(jpgBytes);
+    return Uint8List.fromList(jpgBytes);
   }
 }
