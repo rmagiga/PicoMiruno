@@ -2,8 +2,6 @@ import 'package:docman/docman.dart';
 import 'package:flutter/material.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'image_grid_screen.dart';
 
 void main() {
@@ -65,7 +63,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
     String selectedDirectory = fileEntry.path;
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _folders.add(selectedDirectory!);
+      _folders.add(selectedDirectory);
       prefs.setStringList('folders', _folders);
     });
   }

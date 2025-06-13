@@ -1,11 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:mygallery/platform/file_entry.dart';
 import 'package:mygallery/platform/file_entry_windows.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'dart:io';
 
-class WindowsImageService implements ImageService {
+class WindowsImageService extends ImageService with ImageServiceImpl {
   @override
   Future<List<String>> getImages(String directoryPath) {
     // Windows用の画像取得ロジックを実装
@@ -30,16 +32,6 @@ class WindowsImageService implements ImageService {
   }
 
   @override
-  Future<Image> getImage(String imagePath) async {
-    // Windows用の画像取得ロジックを実装
-    final file = File(imagePath);
-    if (!file.existsSync()) {
-      throw Exception('File not found: $imagePath');
-    }
-    return Image.file(file, fit: BoxFit.cover);
-  }
-
-  @override
   Future<FileEntry?> pickDirectoryPath() async {
     final directoryPath = await FilePicker.platform.getDirectoryPath();
     if (directoryPath == null) {
@@ -52,19 +44,35 @@ class WindowsImageService implements ImageService {
   }
 
   @override
-  FutureBuilder<Image> getImageSync(String imagePath) {
-    return FutureBuilder<Image>(
-      future: getImage(imagePath),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData) {
-          return snapshot.data!;
-        } else if (snapshot.hasError) {
-          return const Icon(Icons.error, color: Colors.red);
-        } else {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        }
-      },
-    );
+  Future<Uint8List> getImageByte(String imagePath) async {
+    // Windows用の画像バイト取得ロジックを実装
+    final file = File(imagePath);
+    if (!file.existsSync()) {
+      throw Exception('File not found: $imagePath');
+    }
+    return await file.readAsBytes();
+  }
+
+  @override
+  Future<Uint8List> getThumbnailBytes(
+    String imagePath, {
+    int size = 128,
+  }) async {
+    final thumbnailPath = getThumbnailPath(imagePath);
+    final thumbnailByte = File(thumbnailPath);
+    if (thumbnailByte.existsSync()) {
+      return await thumbnailByte.readAsBytes();
+    }
+
+    final bytes = await getImageByte(imagePath);
+    if (bytes.isEmpty) {
+      throw Exception('画像の読み込みに失敗しました: $imagePath');
+    }
+
+    final image = img.decodeImage(bytes);
+    if (image == null) throw Exception('画像のデコードに失敗しました');
+
+    final thumbnail = img.copyResize(image, width: size);
+    return Uint8List.fromList(img.encodeJpg(thumbnail));
   }
 }

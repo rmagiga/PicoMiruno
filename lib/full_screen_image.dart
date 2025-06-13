@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:mygallery/platform/image_service.dart';
 
@@ -33,6 +35,26 @@ class _FullScreenImageState extends State<FullScreenImage> {
     super.dispose();
   }
 
+  Widget getImageSync(String imagePath) {
+    return FutureBuilder<Uint8List>(
+      future: _imageService.getImageByte(imagePath),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
+          return Image.memory(
+            snapshot.data!,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          );
+        } else if (snapshot.hasError) {
+          return const Icon(Icons.error, color: Colors.red);
+        } else {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,7 +74,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
             child: InteractiveViewer(
               minScale: 0.5,
               maxScale: 5.0,
-              child: _imageService.getImageSync(widget.imagePaths[index]),
+              child: getImageSync(widget.imagePaths[index]),
             ),
           );
         },

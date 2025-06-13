@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'dart:io';
@@ -81,11 +83,31 @@ class _ImageGridScreenState extends State<ImageGridScreen> {
     );
   }
 
+  Widget getImageSync(String imagePath) {
+    return FutureBuilder<Uint8List>(
+      future: _imageService.getThumbnailBytes(imagePath),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
+          return Image.memory(
+            snapshot.data!,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          );
+        } else if (snapshot.hasError) {
+          return const Icon(Icons.error, color: Colors.red);
+        } else {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+      },
+    );
+  }
+
   Widget _getThumbnail(int index) {
     return SizedBox(
       width: 80,
       height: 80,
-      child: _imageService.getImageSync(displayedImagePaths[index]),
+      child: getImageSync(displayedImagePaths[index]),
     );
   }
 

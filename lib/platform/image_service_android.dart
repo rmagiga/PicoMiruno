@@ -1,9 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:docman/docman.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:mygallery/platform/file_entry.dart';
 import 'package:mygallery/platform/file_entry_android.dart';
-import 'package:mygallery/platform/file_entry_image_provider.dart';
 
 import 'image_service.dart';
 
@@ -43,48 +42,44 @@ class AndroidImageService implements ImageService {
   }
 
   @override
-  Future<Image> getImage(String imagePath) async {
-    // Android用の画像取得ロジックを実装
+  Future<Uint8List> getImageByte(String imagePath) async {
+    final documentFile = await DocumentFile.fromUri(imagePath);
+
+    return _getImageByte(imagePath, documentFile);
+  }
+
+  Future<Uint8List> _getImageByte(
+    String imagePath,
+    DocumentFile? documentFile,
+  ) async {
+    if (documentFile == null) {
+      throw Exception('Document file not found: $imagePath');
+    }
+    final bytes = await documentFile.read();
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('画像の読み込みに失敗しました: $imagePath');
+    }
+    return bytes;
+  }
+
+  @override
+  Future<Uint8List> getThumbnailBytes(
+    String imagePath, {
+    int size = 128,
+  }) async {
     final documentFile = await DocumentFile.fromUri(imagePath);
     if (documentFile == null) {
       throw Exception('Document file not found: $imagePath');
     }
-    return Image(
-      image: FileEntryThumbnailImageProvider(DocumentFileEntry(documentFile)),
-      fit: BoxFit.cover,
-    );
-  }
-
-  Future<Image?> getThumbnailImage(String contentUriOrFilePath) async {
-    final documentThumbnail = await DocumentThumbnail.fromUri(
-      contentUriOrFilePath,
-      width: 192,
-      height: 192,
-      png: true,
-      quality: 100,
-    );
-    if (documentThumbnail != null) {
-      final bytes = documentThumbnail.bytes;
-      Image image = Image.memory(bytes);
-      return image;
+    if (documentFile.canThumbnail) {
+      final documentThumbnail = await documentFile.thumbnail(
+        height: size,
+        width: size,
+      );
+      if (documentThumbnail != null) {
+        return documentThumbnail.bytes;
+      }
     }
-    return null;
-  }
-
-  @override
-  FutureBuilder<Image> getImageSync(String imagePath) {
-    return FutureBuilder<Image>(
-      future: getImage(imagePath),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData) {
-          return snapshot.data!;
-        } else if (snapshot.hasError) {
-          return const Icon(Icons.error, color: Colors.red);
-        } else {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        }
-      },
-    );
+    return _getImageByte(imagePath, documentFile);
   }
 }
