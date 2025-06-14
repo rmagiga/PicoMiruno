@@ -14,6 +14,8 @@ abstract class ImageService {
 }
 
 mixin ImageServiceImpl {
+  static const int maxDiskThumbnailCount = 20000; // 最大キャッシュ数
+
   Future<String> getThumbnailPath(String imagePath) async {
     final cacheDir = await getTemporaryDirectory();
     return '${cacheDir.path}/${imagePath.hashCode}_thumb.jpg';
@@ -39,8 +41,33 @@ mixin ImageServiceImpl {
     if (!File(thumbPath).existsSync()) {
       final thumbBytes = await _generateThumbnail(imagePath);
       await File(thumbPath).writeAsBytes(thumbBytes);
+      await _cleanupOldThumbnails(cacheDir);
     }
     return thumbPath;
+  }
+
+  // ディスクキャッシュのサムネイル数を制限
+  Future<void> _cleanupOldThumbnails(Directory cacheDir) async {
+    final files =
+        cacheDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('_thumb.jpg'))
+            .toList();
+
+    if (files.length <= maxDiskThumbnailCount) return;
+
+    // 最終更新日時でソート（古い順）
+    files.sort(
+      (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+    );
+
+    final removeCount = files.length - maxDiskThumbnailCount;
+    for (int i = 0; i < removeCount; i++) {
+      try {
+        files[i].deleteSync();
+      } catch (_) {}
+    }
   }
 }
 

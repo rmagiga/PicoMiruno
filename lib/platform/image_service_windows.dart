@@ -10,26 +10,25 @@ import 'dart:io';
 
 class WindowsImageService extends ImageService with ImageServiceImpl {
   @override
-  Future<List<String>> getImages(String directoryPath) {
+  Future<List<String>> getImages(String directoryPath) async {
     // Windows用の画像取得ロジックを実装
     final directory = Directory(directoryPath);
     if (!directory.existsSync()) {
-      return Future.value([]);
+      return [];
     }
     final files = directory.list();
-    final imageFiles =
-        files
-            .where((file) {
-              final name = file.path.toLowerCase();
-              return name.endsWith('.jpg') ||
-                  name.endsWith('.jpeg') ||
-                  name.endsWith('.png') ||
-                  name.endsWith('.gif') ||
-                  name.endsWith('.webp');
-            })
-            .map((f) => f.path)
-            .toList();
-    return Future.value(imageFiles);
+    final imageFiles = <String>[];
+    await for (var file in files) {
+      final name = file.path.toLowerCase();
+      if (name.endsWith('.jpg') ||
+          name.endsWith('.jpeg') ||
+          name.endsWith('.png') ||
+          name.endsWith('.gif') ||
+          name.endsWith('.webp')) {
+        imageFiles.add(file.path);
+      }
+    }
+    return imageFiles;
   }
 
   @override

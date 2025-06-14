@@ -15,12 +15,17 @@ class ImageGridScreen extends StatefulWidget {
 
 class _ImageGridScreenState extends State<ImageGridScreen> {
   static const int pageSize = 100;
+  static const int maxCacheSize = 10000; // サムネイルキャッシュの最大数
   List<String> allImagePaths = [];
   List<String> displayedImagePaths = [];
   int currentIndex = 0;
   bool isLoading = false;
   final ScrollController _scrollController = ScrollController();
   final _imageService = ImageServiceFactory.create();
+
+  // サムネイルキャッシュ
+  final Map<String, Uint8List> _thumbnailCache = {};
+  final List<String> _cacheOrder = [];
 
   @override
   void initState() {
@@ -83,12 +88,24 @@ class _ImageGridScreenState extends State<ImageGridScreen> {
     );
   }
 
+  // サムネイル画像をキャッシュしつつ取得
   Widget getImageSync(String imagePath) {
+    if (_thumbnailCache.containsKey(imagePath)) {
+      // キャッシュヒット時は即座に表示
+      return Image.memory(
+        _thumbnailCache[imagePath]!,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    }
+    // 非同期でサムネイル取得
     return FutureBuilder<Uint8List>(
       future: _imageService.getThumbnailBytes(imagePath),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData) {
+          // キャッシュに追加（LRU管理）
+          _addToCache(imagePath, snapshot.data!);
           return Image.memory(
             snapshot.data!,
             fit: BoxFit.cover,
@@ -101,6 +118,21 @@ class _ImageGridScreenState extends State<ImageGridScreen> {
         }
       },
     );
+  }
+
+  // LRUキャッシュ追加処理
+  void _addToCache(String key, Uint8List value) {
+    if (_thumbnailCache.containsKey(key)) {
+      _cacheOrder.remove(key);
+    }
+    _thumbnailCache[key] = value;
+    _cacheOrder.add(key);
+    if (_thumbnailCache.length > maxCacheSize) {
+      final removeKey = _cacheOrder.removeAt(0);
+      _thumbnailCache.remove(removeKey);
+      // FlutterのimageCacheからも削除
+      imageCache.evict(NetworkImage(removeKey), includeLive: true);
+    }
   }
 
   Widget _getThumbnail(int index) {

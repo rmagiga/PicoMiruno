@@ -22,6 +22,11 @@ class _FullScreenImageState extends State<FullScreenImage> {
   late int _currentIndex;
   final _imageService = ImageServiceFactory.create();
 
+  // フルスクリーン用画像キャッシュ（LRU方式）
+  static const int maxCacheSize = 20;
+  final Map<String, Uint8List> _imageCache = {};
+  final List<String> _cacheOrder = [];
+
   @override
   void initState() {
     super.initState();
@@ -36,11 +41,19 @@ class _FullScreenImageState extends State<FullScreenImage> {
   }
 
   Widget getImageSync(String imagePath) {
+    if (_imageCache.containsKey(imagePath)) {
+      return Image.memory(
+        _imageCache[imagePath]!,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    }
     return FutureBuilder<Uint8List>(
       future: _imageService.getImageByte(imagePath),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData) {
+          _addToCache(imagePath, snapshot.data!);
           return Image.memory(
             snapshot.data!,
             fit: BoxFit.cover,
@@ -53,6 +66,20 @@ class _FullScreenImageState extends State<FullScreenImage> {
         }
       },
     );
+  }
+
+  void _addToCache(String key, Uint8List value) {
+    if (_imageCache.containsKey(key)) {
+      _cacheOrder.remove(key);
+    }
+    _imageCache[key] = value;
+    _cacheOrder.add(key);
+    if (_imageCache.length > maxCacheSize) {
+      final removeKey = _cacheOrder.removeAt(0);
+      _imageCache.remove(removeKey);
+      // FlutterのimageCacheからも削除
+      imageCache.clear();
+    }
   }
 
   @override
