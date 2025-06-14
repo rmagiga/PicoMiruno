@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'image_grid_screen.dart';
+import 'settings_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,11 +15,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Gallery App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: const FolderListScreen(),
+      routes: {'/settings': (context) => const SettingsScreen()},
     );
   }
 }
@@ -80,7 +83,18 @@ class _FolderListScreenState extends State<FolderListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('フォルダ一覧')),
+      appBar: AppBar(
+        title: const Text('フォルダ一覧'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              // 設定画面への遷移（後で画面を作成）
+              Navigator.pushNamed(context, '/settings');
+            },
+          ),
+        ],
+      ),
       body: ListView.builder(
         itemCount: _folders.length,
         itemBuilder: (context, index) {
