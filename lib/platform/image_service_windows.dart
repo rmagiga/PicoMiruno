@@ -59,9 +59,11 @@ class WindowsImageService extends ImageService with ImageServiceImpl {
     int size = 128,
   }) async {
     final thumbnailPath = await getThumbnailPath(imagePath);
-    final thumbnailByte = File(thumbnailPath);
-    if (thumbnailByte.existsSync()) {
-      return await thumbnailByte.readAsBytes();
+    final thumbnailFile = File(thumbnailPath);
+    if (thumbnailFile.existsSync()) {
+      // アクセス時刻を更新（最終更新時刻を現在時刻に）
+      await thumbnailFile.setLastModified(DateTime.now());
+      return await thumbnailFile.readAsBytes();
     }
 
     final bytes = await getImageByte(imagePath);

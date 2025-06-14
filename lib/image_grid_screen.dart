@@ -37,6 +37,9 @@ class _ImageGridScreenState extends State<ImageGridScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _thumbnailCache.clear();
+    _cacheOrder.clear();
+    imageCache.clear(); // FlutterのimageCacheもクリア
     super.dispose();
   }
 

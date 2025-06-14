@@ -14,7 +14,18 @@ abstract class ImageService {
 }
 
 mixin ImageServiceImpl {
-  static const int maxDiskThumbnailCount = 20000; // 最大キャッシュ数
+  // プラットフォームごとにキャッシュ数・容量を切り替え
+  int get maxDiskThumbnailCount {
+    if (Platform.isAndroid) return 5000;
+    if (Platform.isWindows) return 20000;
+    return 5000;
+  }
+
+  int get maxDiskThumbnailBytes {
+    if (Platform.isAndroid) return 200 * 1024 * 1024; // 200MB
+    if (Platform.isWindows) return 500 * 1024 * 1024; // 500MB
+    return 200 * 1024 * 1024;
+  }
 
   Future<String> getThumbnailPath(String imagePath) async {
     final cacheDir = await getTemporaryDirectory();
@@ -55,18 +66,32 @@ mixin ImageServiceImpl {
             .where((f) => f.path.endsWith('_thumb.jpg'))
             .toList();
 
-    if (files.length <= maxDiskThumbnailCount) return;
+    // ファイル数制限
+    if (files.length > maxDiskThumbnailCount) {
+      files.sort(
+        (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+      );
+      final removeCount = files.length - maxDiskThumbnailCount;
+      for (int i = 0; i < removeCount; i++) {
+        try {
+          files[i].deleteSync();
+        } catch (_) {}
+      }
+    }
 
-    // 最終更新日時でソート（古い順）
-    files.sort(
-      (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
-    );
-
-    final removeCount = files.length - maxDiskThumbnailCount;
-    for (int i = 0; i < removeCount; i++) {
-      try {
-        files[i].deleteSync();
-      } catch (_) {}
+    // 合計サイズ制限
+    int totalSize = files.fold(0, (sum, f) => sum + f.statSync().size);
+    if (totalSize > maxDiskThumbnailBytes) {
+      files.sort(
+        (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+      );
+      for (final file in files) {
+        if (totalSize <= maxDiskThumbnailBytes) break;
+        try {
+          totalSize -= file.statSync().size;
+          file.deleteSync();
+        } catch (_) {}
+      }
     }
   }
 }
