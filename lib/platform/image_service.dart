@@ -5,6 +5,8 @@ import 'package:mygallery/platform/image_service_windows.dart';
 import 'file_entry.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../thumbnail_config_provider.dart';
 
 abstract class ImageService {
   Future<FileEntry?> pickDirectoryPath();
@@ -14,17 +16,14 @@ abstract class ImageService {
 }
 
 mixin ImageServiceImpl {
-  // プラットフォームごとにキャッシュ数・容量を切り替え
   int get maxDiskThumbnailCount {
-    if (Platform.isAndroid) return 5000;
-    if (Platform.isWindows) return 20000;
-    return 5000;
+    final container = ProviderContainer();
+    return container.read(thumbnailConfigProvider).maxCount;
   }
 
   int get maxDiskThumbnailBytes {
-    if (Platform.isAndroid) return 200 * 1024 * 1024; // 200MB
-    if (Platform.isWindows) return 500 * 1024 * 1024; // 500MB
-    return 200 * 1024 * 1024;
+    final container = ProviderContainer();
+    return container.read(thumbnailConfigProvider).maxBytes;
   }
 
   Future<String> getThumbnailPath(String imagePath) async {
