@@ -6,9 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'image_grid_screen.dart';
 import 'settings_screen.dart';
 import 'theme_mode_provider.dart';
+import 'thumbnail_config_provider.dart';
 
-void main() {
-  runApp(const ProviderScope(child: MyApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // すべての設定をロード
+  final container = ProviderContainer();
+  await Future.wait([
+    container.read(themeModeProvider.notifier).loadFromStorage(),
+    container.read(thumbnailConfigProvider.notifier).loadFromStorage(),
+  ]);
+  runApp(UncontrolledProviderScope(container: container, child: const MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
@@ -126,4 +134,24 @@ class _FolderListScreenState extends State<FolderListScreen> {
       ),
     );
   }
+}
+
+Future<void> addFolderToPrefs(
+  BuildContext context, {
+  void Function(String folderPath)? onAdded,
+}) async {
+  var imageService = ImageServiceFactory.create();
+  var fileEntry = await imageService.pickDirectoryPath();
+  if (fileEntry == null || fileEntry.isDirectory == false) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
+    return;
+  }
+  String selectedDirectory = fileEntry.path;
+  final prefs = await SharedPreferences.getInstance();
+  final folders = prefs.getStringList('folders') ?? [];
+  folders.add(selectedDirectory);
+  await prefs.setStringList('folders', folders);
+  if (onAdded != null) onAdded(selectedDirectory);
 }

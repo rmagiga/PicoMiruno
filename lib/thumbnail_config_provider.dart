@@ -43,4 +43,8 @@ class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('maxDiskThumbnailBytes', bytes);
   }
+
+  Future<void> loadFromStorage() async {
+    await _load();
+  }
 }

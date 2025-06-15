@@ -1,20 +1,21 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'dart:io';
 import 'full_screen_image.dart';
 
-class ImageGridScreen extends StatefulWidget {
+class ImageGridScreen extends ConsumerStatefulWidget {
   final String folderPath;
   const ImageGridScreen({super.key, required this.folderPath});
 
   @override
-  State<ImageGridScreen> createState() => _ImageGridScreenState();
+  ConsumerState<ImageGridScreen> createState() => _ImageGridScreenState();
 }
 
-class _ImageGridScreenState extends State<ImageGridScreen> {
-  static const int pageSize = 20;
+class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
+  static const int pageSize = 100;
   static const int maxCacheSize = 10000; // サムネイルキャッシュの最大数
   List<String> allImagePaths = [];
   List<String> displayedImagePaths = [];

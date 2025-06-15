@@ -34,4 +34,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       prefs.setString('theme_mode', 'system');
     }
   }
+
+  Future<void> loadFromStorage() async {
+    await _loadThemeMode();
+  }
 }
