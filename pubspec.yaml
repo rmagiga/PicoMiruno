@@ -16,6 +16,7 @@ dependencies:
   docman: ^1.2.0
   image: ^4.5.4
   path_provider: ^2.1.5
+  flutter_riverpod: ^2.6.1
 
 dev_dependencies:
   flutter_test:

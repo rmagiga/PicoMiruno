@@ -14,7 +14,7 @@ class ImageGridScreen extends StatefulWidget {
 }
 
 class _ImageGridScreenState extends State<ImageGridScreen> {
-  static const int pageSize = 100;
+  static const int pageSize = 20;
   static const int maxCacheSize = 10000; // サムネイルキャッシュの最大数
   List<String> allImagePaths = [];
   List<String> displayedImagePaths = [];

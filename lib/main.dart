@@ -1,25 +1,30 @@
 import 'package:docman/docman.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'image_grid_screen.dart';
 import 'settings_screen.dart';
+import 'theme_mode_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Gallery App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
+      darkTheme: ThemeData.dark(),
+      themeMode: themeMode,
       home: const FolderListScreen(),
       routes: {'/settings': (context) => const SettingsScreen()},
     );
