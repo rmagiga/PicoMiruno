@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mygallery/platform/image_service.dart';
 import 'dart:io';
 import 'full_screen_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class ImageGridScreen extends ConsumerStatefulWidget {
   final String folderPath;
@@ -15,33 +16,20 @@ class ImageGridScreen extends ConsumerStatefulWidget {
 }
 
 class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
-  static const int pageSize = 5; // 5件ずつ追加
-  static const int maxCacheSize = 10000; // サムネイルキャッシュの最大数
   List<String> allImagePaths = [];
-  List<String> displayedImagePaths = [];
-  int currentIndex = 0;
-  bool isLoading = false;
   final _imageService = ImageServiceFactory.create();
-
-  // サムネイルキャッシュ
-  final Map<String, Uint8List> _thumbnailCache = {};
-  final List<String> _cacheOrder = [];
-
   ScrollController? _scrollController;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _scrollController!.addListener(_onScroll);
     _loadImagePaths();
   }
 
   @override
   void dispose() {
     _scrollController?.dispose();
-    _thumbnailCache.clear();
-    _cacheOrder.clear();
     imageCache.clear(); // FlutterのimageCacheもクリア
     super.dispose();
   }
@@ -50,57 +38,6 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     List<String> imagePaths = await _imageService.getImages(widget.folderPath);
     setState(() {
       allImagePaths = imagePaths;
-      displayedImagePaths = [];
-      currentIndex = 0;
-    });
-    _autoLoadImages();
-  }
-
-  void _autoLoadImages() async {
-    while (currentIndex < allImagePaths.length &&
-        displayedImagePaths.length < maxCacheSize) {
-      setState(() {
-        isLoading = true;
-      });
-      final nextIndex = (currentIndex + pageSize).clamp(
-        0,
-        allImagePaths.length,
-      );
-      await Future.delayed(const Duration(milliseconds: 100));
-      setState(() {
-        displayedImagePaths.addAll(
-          allImagePaths.getRange(currentIndex, nextIndex),
-        );
-        currentIndex = nextIndex;
-        isLoading = false;
-      });
-    }
-  }
-
-  void _onScroll() {
-    if (displayedImagePaths.length < maxCacheSize) return; // キャッシュ上限までは自動ロード
-    if (_scrollController == null) return;
-    if (_scrollController!.position.pixels >=
-            _scrollController!.position.maxScrollExtent - 100 &&
-        !isLoading) {
-      _loadMoreImagePaths();
-    }
-  }
-
-  void _loadMoreImagePaths() {
-    if (currentIndex >= allImagePaths.length) return;
-    setState(() {
-      isLoading = true;
-    });
-    final nextIndex = (currentIndex + pageSize).clamp(0, allImagePaths.length);
-    Future.delayed(const Duration(milliseconds: 100), () {
-      setState(() {
-        displayedImagePaths.addAll(
-          allImagePaths.getRange(currentIndex, nextIndex),
-        );
-        currentIndex = nextIndex;
-        isLoading = false;
-      });
     });
   }
 
@@ -110,7 +47,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: Text(
-          displayedImagePaths[index].split(Platform.pathSeparator).last,
+          allImagePaths[index].split(Platform.pathSeparator).last,
           style: const TextStyle(color: Colors.white, fontSize: 12.0),
           textAlign: TextAlign.center,
         ),
@@ -118,24 +55,27 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     );
   }
 
-  // サムネイル画像をキャッシュしつつ取得
+  // flutter_cache_managerでサムネイル画像を取得
   Widget getImageSync(String imagePath) {
-    if (_thumbnailCache.containsKey(imagePath)) {
-      // キャッシュヒット時は即座に表示
-      return Image.memory(
-        _thumbnailCache[imagePath]!,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      );
-    }
-    // 非同期でサムネイル取得
     return FutureBuilder<Uint8List>(
-      future: _imageService.getThumbnailBytes(imagePath),
+      future: () async {
+        final cacheManager = DefaultCacheManager();
+        final fileInfo = await cacheManager.getFileFromCache(imagePath);
+        if (fileInfo != null && await fileInfo.file.exists()) {
+          return await fileInfo.file.readAsBytes();
+        } else {
+          final thumbBytes = await _imageService.getThumbnailBytes(imagePath);
+          final file = await cacheManager.putFile(
+            imagePath, // key
+            thumbBytes,
+            fileExtension: 'jpg',
+          );
+          return await file.readAsBytes();
+        }
+      }(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData) {
-          // キャッシュに追加（LRU管理）
-          _addToCache(imagePath, snapshot.data!);
           return Image.memory(
             snapshot.data!,
             fit: BoxFit.cover,
@@ -150,35 +90,16 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     );
   }
 
-  // LRUキャッシュ追加処理
-  void _addToCache(String key, Uint8List value) {
-    if (_thumbnailCache.containsKey(key)) {
-      _cacheOrder.remove(key);
-    }
-    _thumbnailCache[key] = value;
-    _cacheOrder.add(key);
-    if (_thumbnailCache.length > maxCacheSize) {
-      final removeKey = _cacheOrder.removeAt(0);
-      _thumbnailCache.remove(removeKey);
-      // FlutterのimageCacheからも削除
-      imageCache.evict(NetworkImage(removeKey), includeLive: true);
-    }
-  }
-
   Widget _getThumbnail(int index) {
     return SizedBox(
       width: 80,
       height: 80,
-      child: getImageSync(displayedImagePaths[index]),
+      child: getImageSync(allImagePaths[index]),
     );
   }
 
   Widget _buildEmptyView() {
     return const Center(child: Text('画像が見つかりません'));
-  }
-
-  Widget _buildLoadingIndicator() {
-    return const Center(child: CircularProgressIndicator());
   }
 
   Widget _buildGridView() {
@@ -194,7 +115,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
           crossAxisSpacing: 4.0,
           childAspectRatio: 1,
         ),
-        itemCount: displayedImagePaths.length,
+        itemCount: allImagePaths.length,
         itemBuilder: (context, index) {
           return _buildGridTile(index);
         },
