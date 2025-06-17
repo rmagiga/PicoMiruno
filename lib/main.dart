@@ -69,6 +69,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
 
     var fileEntry = await imageService.pickDirectoryPath();
     if (fileEntry == null || fileEntry.isDirectory == false) {
+      if (!mounted) return;
       // ユーザーがフォルダを選択しなかった場合の処理
       ScaffoldMessenger.of(
         context,
