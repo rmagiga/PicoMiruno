@@ -182,18 +182,23 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   }
 
   Widget _buildGridView() {
-    return GridView.builder(
+    return Scrollbar(
       controller: _scrollController,
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 90, // サムネイルの最大幅を固定（80+余白）
-        mainAxisSpacing: 4.0,
-        crossAxisSpacing: 4.0,
-        childAspectRatio: 1,
+      thumbVisibility: true, // 常にスクロールバーを表示
+      child: GridView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(right: 16), // スクロールバー分の余白
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 90, // サムネイルの最大幅を固定（80+余白）
+          mainAxisSpacing: 4.0,
+          crossAxisSpacing: 4.0,
+          childAspectRatio: 1,
+        ),
+        itemCount: displayedImagePaths.length,
+        itemBuilder: (context, index) {
+          return _buildGridTile(index);
+        },
       ),
-      itemCount: displayedImagePaths.length,
-      itemBuilder: (context, index) {
-        return _buildGridTile(index);
-      },
     );
   }
 
