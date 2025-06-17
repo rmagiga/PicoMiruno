@@ -15,29 +15,31 @@ class ImageGridScreen extends ConsumerStatefulWidget {
 }
 
 class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
-  static const int pageSize = 100;
+  static const int pageSize = 5; // 5件ずつ追加
   static const int maxCacheSize = 10000; // サムネイルキャッシュの最大数
   List<String> allImagePaths = [];
   List<String> displayedImagePaths = [];
   int currentIndex = 0;
   bool isLoading = false;
-  final ScrollController _scrollController = ScrollController();
   final _imageService = ImageServiceFactory.create();
 
   // サムネイルキャッシュ
   final Map<String, Uint8List> _thumbnailCache = {};
   final List<String> _cacheOrder = [];
 
+  ScrollController? _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController!.addListener(_onScroll);
     _loadImagePaths();
-    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _scrollController?.dispose();
     _thumbnailCache.clear();
     _cacheOrder.clear();
     imageCache.clear(); // FlutterのimageCacheもクリア
@@ -48,14 +50,38 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     List<String> imagePaths = await _imageService.getImages(widget.folderPath);
     setState(() {
       allImagePaths = imagePaths;
-      displayedImagePaths = imagePaths.take(pageSize).toList();
-      currentIndex = displayedImagePaths.length;
+      displayedImagePaths = [];
+      currentIndex = 0;
     });
+    _autoLoadImages();
+  }
+
+  void _autoLoadImages() async {
+    while (currentIndex < allImagePaths.length &&
+        displayedImagePaths.length < maxCacheSize) {
+      setState(() {
+        isLoading = true;
+      });
+      final nextIndex = (currentIndex + pageSize).clamp(
+        0,
+        allImagePaths.length,
+      );
+      await Future.delayed(const Duration(milliseconds: 100));
+      setState(() {
+        displayedImagePaths.addAll(
+          allImagePaths.getRange(currentIndex, nextIndex),
+        );
+        currentIndex = nextIndex;
+        isLoading = false;
+      });
+    }
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 100 &&
+    if (displayedImagePaths.length < maxCacheSize) return; // キャッシュ上限までは自動ロード
+    if (_scrollController == null) return;
+    if (_scrollController!.position.pixels >=
+            _scrollController!.position.maxScrollExtent - 100 &&
         !isLoading) {
       _loadMoreImagePaths();
     }
@@ -156,49 +182,41 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   }
 
   Widget _buildGridView() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (scrollNotification) {
-        if (scrollNotification is ScrollEndNotification) {
-          _onScroll();
-        }
-        return false;
-      },
-      child: GridView.builder(
-        controller: _scrollController,
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 90, // サムネイルの最大幅を固定（80+余白）
-          mainAxisSpacing: 4.0,
-          crossAxisSpacing: 4.0,
-          childAspectRatio: 1,
-        ),
-        itemCount: displayedImagePaths.length + (isLoading ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= displayedImagePaths.length) {
-            return _buildLoadingIndicator();
-          }
-          return _buildGridTile(index);
-        },
+    return GridView.builder(
+      controller: _scrollController,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 90, // サムネイルの最大幅を固定（80+余白）
+        mainAxisSpacing: 4.0,
+        crossAxisSpacing: 4.0,
+        childAspectRatio: 1,
       ),
+      itemCount: displayedImagePaths.length,
+      itemBuilder: (context, index) {
+        return _buildGridTile(index);
+      },
     );
   }
 
   Widget _buildGridTile(int index) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => FullScreenImage(
-                  imagePaths: allImagePaths,
-                  initialIndex: index,
-                ),
-          ),
-        );
-      },
-      child: GridTile(
-        footer: _getThumbnailText(index),
-        child: _getThumbnail(index),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => FullScreenImage(
+                    imagePaths: allImagePaths,
+                    initialIndex: index,
+                  ),
+            ),
+          );
+        },
+        child: GridTile(
+          footer: _getThumbnailText(index),
+          child: _getThumbnail(index),
+        ),
       ),
     );
   }
