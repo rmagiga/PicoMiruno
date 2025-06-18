@@ -76,7 +76,6 @@ class WindowsImageService extends ImageService with ImageServiceImpl {
 
     final thumbnail = img.copyResize(image, width: size);
     final jpgBytes = img.encodeJpg(thumbnail);
-    await File(thumbnailPath).writeAsBytes(jpgBytes);
     return Uint8List.fromList(jpgBytes);
   }
 }

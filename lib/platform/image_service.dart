@@ -13,6 +13,7 @@ abstract class ImageService {
   Future<List<String>> getImages(String directoryPath);
   Future<Uint8List> getImageByte(String imagePath);
   Future<Uint8List> getThumbnailBytes(String imagePath, {int size = 128});
+  Future<String> getThumbnailPath(String imagePath);
 }
 
 mixin ImageServiceImpl {

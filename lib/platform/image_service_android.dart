@@ -6,7 +6,7 @@ import 'package:mygallery/platform/file_entry_android.dart';
 
 import 'image_service.dart';
 
-class AndroidImageService implements ImageService {
+class AndroidImageService extends ImageService with ImageServiceImpl {
   @override
   Future<FileEntry?> pickDirectoryPath() async {
     // Android用のフォルダ選択ロジックを実装

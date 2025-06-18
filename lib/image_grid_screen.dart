@@ -65,8 +65,10 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
           return await fileInfo.file.readAsBytes();
         } else {
           final thumbBytes = await _imageService.getThumbnailBytes(imagePath);
+          final thumbnailPath = await _imageService.getThumbnailPath(imagePath);
+
           final file = await cacheManager.putFile(
-            imagePath, // key
+            thumbnailPath, // key
             thumbBytes,
             fileExtension: 'jpg',
           );
