@@ -71,9 +71,11 @@ class _FolderListScreenState extends State<FolderListScreen> {
     if (fileEntry == null || fileEntry.isDirectory == false) {
       if (!mounted) return;
       // ユーザーがフォルダを選択しなかった場合の処理
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
+      }
       return;
     }
 
@@ -144,9 +146,11 @@ Future<void> addFolderToPrefs(
   var imageService = ImageServiceFactory.create();
   var fileEntry = await imageService.pickDirectoryPath();
   if (fileEntry == null || fileEntry.isDirectory == false) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
+    }
     return;
   }
   String selectedDirectory = fileEntry.path;
