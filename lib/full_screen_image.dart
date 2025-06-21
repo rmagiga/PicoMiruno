@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:mygallery/platform/image_service.dart';
+import 'package:photo_view/photo_view.dart';
 
 class FullScreenImage extends StatefulWidget {
   final List<String> imagePaths;
@@ -21,11 +23,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
   late PageController _pageController;
   late int _currentIndex;
   final _imageService = ImageServiceFactory.create();
-
-  // フルスクリーン用画像キャッシュ（LRU方式）
-  static const int maxCacheSize = 20;
-  final Map<String, Uint8List> _imageCache = {};
-  final List<String> _cacheOrder = [];
+  final Map<String, Uint8List> _memoryImageCache = {};
 
   @override
   void initState() {
@@ -40,46 +38,130 @@ class _FullScreenImageState extends State<FullScreenImage> {
     super.dispose();
   }
 
-  Widget getImageSync(String imagePath) {
-    if (_imageCache.containsKey(imagePath)) {
-      return Image.memory(
-        _imageCache[imagePath]!,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      );
+  Future<Uint8List> _getImageBytesWithCache(String imagePath) async {
+    // メモリキャッシュ優先
+    if (_memoryImageCache.containsKey(imagePath)) {
+      return _memoryImageCache[imagePath]!;
+    }
+    final cacheManager = DefaultCacheManager();
+    final cachedFile = await cacheManager.getFileFromCache(imagePath);
+    if (cachedFile != null && await cachedFile.file.exists()) {
+      final bytes = await cachedFile.file.readAsBytes();
+      _memoryImageCache[imagePath] = bytes;
+      return bytes;
+    }
+    final bytes = await _imageService.getImageByte(imagePath);
+    await cacheManager.putFile(imagePath, bytes);
+    _memoryImageCache[imagePath] = bytes;
+    return bytes;
+  }
+
+  // flutter_cache_managerの利用をやめ、ImageServiceのgetImageByteを使う
+  Widget getImageSync(String imagePath, int index) {
+    if (_memoryImageCache.containsKey(imagePath)) {
+      return _buildPhotoView(_memoryImageCache[imagePath]!, imagePath, index);
     }
     return FutureBuilder<Uint8List>(
-      future: _imageService.getImageByte(imagePath),
+      future: _getImageBytesWithCache(imagePath),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData) {
-          _addToCache(imagePath, snapshot.data!);
-          return Image.memory(
-            snapshot.data!,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-          );
+          return _buildPhotoView(snapshot.data!, imagePath, index);
         } else if (snapshot.hasError) {
           return const Icon(Icons.error, color: Colors.red);
         } else {
+          // 前の画像があればそれを一時的に表示
+          if (_memoryImageCache.isNotEmpty) {
+            final prev = _memoryImageCache.values.last;
+            return _buildPhotoView(prev, imagePath, index, isPlaceholder: true);
+          }
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
       },
     );
   }
 
-  void _addToCache(String key, Uint8List value) {
-    if (_imageCache.containsKey(key)) {
-      _cacheOrder.remove(key);
-    }
-    _imageCache[key] = value;
-    _cacheOrder.add(key);
-    if (_imageCache.length > maxCacheSize) {
-      final removeKey = _cacheOrder.removeAt(0);
-      _imageCache.remove(removeKey);
-      // FlutterのimageCacheからも削除
-      imageCache.clear();
-    }
+  Widget _buildPhotoView(
+    Uint8List bytes,
+    String imagePath,
+    int index, {
+    bool isPlaceholder = false,
+  }) {
+    return Stack(
+      children: [
+        PhotoView(
+          imageProvider: MemoryImage(bytes),
+          minScale: PhotoViewComputedScale.contained * 0.5,
+          maxScale: PhotoViewComputedScale.covered * 5.0,
+          heroAttributes: PhotoViewHeroAttributes(tag: imagePath),
+          gestureDetectorBehavior: HitTestBehavior.translucent,
+          enablePanAlways: true,
+          backgroundDecoration: const BoxDecoration(color: Colors.black),
+          enableRotation: true,
+        ),
+        // 左端スワイプ
+        Align(
+          alignment: Alignment.centerLeft,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! > 0) {
+                if (index > 0) {
+                  _pageController.previousPage(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.ease,
+                  );
+                }
+              }
+            },
+            onTapUp: (_) {
+              if (index > 0) {
+                _pageController.previousPage(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.ease,
+                );
+              }
+            },
+            child: const SizedBox(width: 40, height: double.infinity),
+          ),
+        ),
+        // 右端スワイプ
+        Align(
+          alignment: Alignment.centerRight,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! < 0) {
+                if (index < widget.imagePaths.length - 1) {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.ease,
+                  );
+                }
+              }
+            },
+            onTapUp: (_) {
+              if (index < widget.imagePaths.length - 1) {
+                _pageController.nextPage(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.ease,
+                );
+              }
+            },
+            child: const SizedBox(width: 40, height: double.infinity),
+          ),
+        ),
+        if (isPlaceholder)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black54,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -91,19 +173,14 @@ class _FullScreenImageState extends State<FullScreenImage> {
       body: PageView.builder(
         controller: _pageController,
         itemCount: widget.imagePaths.length,
+        physics: const ClampingScrollPhysics(),
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
         itemBuilder: (context, index) {
-          return Center(
-            child: InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 5.0,
-              child: getImageSync(widget.imagePaths[index]),
-            ),
-          );
+          return Center(child: getImageSync(widget.imagePaths[index], index));
         },
       ),
     );
