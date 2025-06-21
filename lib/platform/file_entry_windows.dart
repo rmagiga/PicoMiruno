@@ -15,13 +15,4 @@ class IOFileEntry implements FileEntry {
 
   @override
   bool get isDirectory => entity is Directory;
-
-  @override
-  Future<List<FileEntry>> listFiles() async {
-    if (entity is Directory) {
-      final children = await (entity as Directory).list().toList();
-      return children.map((e) => IOFileEntry(e)).toList();
-    }
-    return [];
-  }
 }
