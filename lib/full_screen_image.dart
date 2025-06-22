@@ -2,16 +2,16 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:mygallery/platform/image_service.dart';
+import 'package:mygallery/platform/file_entry.dart';
 import 'package:photo_view/photo_view.dart';
 
 class FullScreenImage extends StatefulWidget {
-  final List<String> imagePaths;
+  final List<FileEntry> fileEntries;
   final int initialIndex;
 
   const FullScreenImage({
     super.key,
-    required this.imagePaths,
+    required this.fileEntries,
     required this.initialIndex,
   });
 
@@ -22,8 +22,7 @@ class FullScreenImage extends StatefulWidget {
 class _FullScreenImageState extends State<FullScreenImage> {
   late PageController _pageController;
   late int _currentIndex;
-  final _imageService = ImageServiceFactory.create();
-  final Map<String, Uint8List> _memoryImageCache = {};
+  final cacheManager = DefaultCacheManager();
 
   @override
   void initState() {
@@ -38,45 +37,33 @@ class _FullScreenImageState extends State<FullScreenImage> {
     super.dispose();
   }
 
-  Future<Uint8List> _getImageBytesWithCache(String imagePath) async {
+  Future<Uint8List> _getImageBytesWithCache(FileEntry fileEntry) async {
     // メモリキャッシュ優先
-    if (_memoryImageCache.containsKey(imagePath)) {
-      return _memoryImageCache[imagePath]!;
-    }
-    final cacheManager = DefaultCacheManager();
+    final imagePath = fileEntry.path;
     final cachedFile = await cacheManager.getFileFromCache(imagePath);
     if (cachedFile != null && await cachedFile.file.exists()) {
-      final bytes = await cachedFile.file.readAsBytes();
-      _memoryImageCache[imagePath] = bytes;
-      return bytes;
+      return await cachedFile.file.readAsBytes();
     }
-    final bytes = await _imageService.getImageByte(imagePath);
+    final bytes = await fileEntry.readAsBytes();
     await cacheManager.putFile(imagePath, bytes);
-    _memoryImageCache[imagePath] = bytes;
     return bytes;
   }
 
   // flutter_cache_managerの利用をやめ、ImageServiceのgetImageByteを使う
-  Widget getImageSync(String imagePath, int index) {
-    if (_memoryImageCache.containsKey(imagePath)) {
-      return _buildPhotoView(_memoryImageCache[imagePath]!, imagePath, index);
-    }
+  Widget getImageSync(FileEntry fileEntry, int index) {
+    final imagePath = fileEntry.path;
+
     return FutureBuilder<Uint8List>(
-      future: _getImageBytesWithCache(imagePath),
+      future: _getImageBytesWithCache(fileEntry),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData) {
           return _buildPhotoView(snapshot.data!, imagePath, index);
         } else if (snapshot.hasError) {
           return const Icon(Icons.error, color: Colors.red);
-        } else {
-          // 前の画像があればそれを一時的に表示
-          if (_memoryImageCache.isNotEmpty) {
-            final prev = _memoryImageCache.values.last;
-            return _buildPhotoView(prev, imagePath, index, isPlaceholder: true);
-          }
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
+        // Show a loading indicator while waiting for the image
+        return const Center(child: CircularProgressIndicator());
       },
     );
   }
@@ -134,7 +121,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
             onHorizontalDragEnd: (details) {
               if (details.primaryVelocity != null &&
                   details.primaryVelocity! < 0) {
-                if (index < widget.imagePaths.length - 1) {
+                if (index < widget.fileEntries.length - 1) {
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.ease,
@@ -143,7 +130,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
               }
             },
             onTapUp: (_) {
-              if (index < widget.imagePaths.length - 1) {
+              if (index < widget.fileEntries.length - 1) {
                 _pageController.nextPage(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.ease,
@@ -168,11 +155,11 @@ class _FullScreenImageState extends State<FullScreenImage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${_currentIndex + 1} / ${widget.imagePaths.length}'),
+        title: Text('${_currentIndex + 1} / ${widget.fileEntries.length}'),
       ),
       body: PageView.builder(
         controller: _pageController,
-        itemCount: widget.imagePaths.length,
+        itemCount: widget.fileEntries.length,
         physics: const ClampingScrollPhysics(),
         onPageChanged: (index) {
           setState(() {
@@ -180,7 +167,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           });
         },
         itemBuilder: (context, index) {
-          return Center(child: getImageSync(widget.imagePaths[index], index));
+          return Center(child: getImageSync(widget.fileEntries[index], index));
         },
       ),
     );

@@ -2,8 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mygallery/platform/image_service.dart';
-import 'dart:io';
+import 'package:mygallery/platform/file_entry.dart';
 import 'full_screen_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
@@ -16,9 +15,11 @@ class ImageGridScreen extends ConsumerStatefulWidget {
 }
 
 class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
-  List<String> allImagePaths = [];
-  final _imageService = ImageServiceFactory.create();
+  //List<String> allImagePaths = [];
+  List<FileEntry> allImageEntries = [];
+  //final _imageService = ImageServiceFactory.create();
   ScrollController? _scrollController;
+  final directoryEntryFactory = DirectoryEntryFactory();
 
   @override
   void initState() {
@@ -35,9 +36,11 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   }
 
   Future<void> _loadImagePaths() async {
-    List<String> imagePaths = await _imageService.getImages(widget.folderPath);
+    final directoryEntry = directoryEntryFactory.create(widget.folderPath);
+    final imageEntryList = await directoryEntry.listFiles();
+    // ディレクトリエントリがnullの場合は、フォルダが存在しないかアクセスできない
     setState(() {
-      allImagePaths = imagePaths;
+      allImageEntries = imageEntryList;
     });
   }
 
@@ -47,7 +50,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: Text(
-          allImagePaths[index].split(Platform.pathSeparator).last,
+          allImageEntries[index].name,
           style: const TextStyle(color: Colors.white, fontSize: 12.0),
           textAlign: TextAlign.center,
         ),
@@ -56,17 +59,16 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   }
 
   // flutter_cache_managerでサムネイル画像を取得
-  Widget getImageSync(String imagePath) {
+  Widget getImageSync(FileEntry entry) {
     return FutureBuilder<Uint8List>(
       future: () async {
+        final thumbnailPath = await entry.getThumbnailPath();
         final cacheManager = DefaultCacheManager();
-        final fileInfo = await cacheManager.getFileFromCache(imagePath);
+        final fileInfo = await cacheManager.getFileFromCache(thumbnailPath);
         if (fileInfo != null && await fileInfo.file.exists()) {
           return await fileInfo.file.readAsBytes();
         } else {
-          final thumbBytes = await _imageService.getThumbnailBytes(imagePath);
-          final thumbnailPath = await _imageService.getThumbnailPath(imagePath);
-
+          final thumbBytes = await entry.thumbnailReadAsBytes();
           final file = await cacheManager.putFile(
             thumbnailPath, // key
             thumbBytes,
@@ -96,7 +98,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     return SizedBox(
       width: 80,
       height: 80,
-      child: getImageSync(allImagePaths[index]),
+      child: getImageSync(allImageEntries[index]),
     );
   }
 
@@ -117,7 +119,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
           crossAxisSpacing: 4.0,
           childAspectRatio: 1,
         ),
-        itemCount: allImagePaths.length,
+        itemCount: allImageEntries.length,
         itemBuilder: (context, index) {
           return _buildGridTile(index);
         },
@@ -135,7 +137,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
             MaterialPageRoute(
               builder:
                   (context) => FullScreenImage(
-                    imagePaths: allImagePaths,
+                    fileEntries: allImageEntries,
                     initialIndex: index,
                   ),
             ),
@@ -153,7 +155,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.folderPath)),
-      body: allImagePaths.isEmpty ? _buildEmptyView() : _buildGridView(),
+      body: allImageEntries.isEmpty ? _buildEmptyView() : _buildGridView(),
     );
   }
 }

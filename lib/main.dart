@@ -1,7 +1,7 @@
 import 'package:docman/docman.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mygallery/platform/image_service.dart';
+import 'package:mygallery/platform/file_entry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'image_grid_screen.dart';
 import 'settings_screen.dart';
@@ -65,10 +65,9 @@ class _FolderListScreenState extends State<FolderListScreen> {
   Future<DocumentFile?> pickDirectoryPath() => DocMan.pick.directory();
 
   Future<void> _addFolder() async {
-    var imageService = ImageServiceFactory.create();
+    final directoryEntry = await DirectoryEntryFactory().pickDirectory();
 
-    var fileEntry = await imageService.pickDirectoryPath();
-    if (fileEntry == null || fileEntry.isDirectory == false) {
+    if (directoryEntry == null) {
       if (!mounted) return;
       // ユーザーがフォルダを選択しなかった場合の処理
       if (context.mounted) {
@@ -79,7 +78,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
       return;
     }
 
-    String selectedDirectory = fileEntry.path;
+    String selectedDirectory = directoryEntry.path;
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _folders.add(selectedDirectory);
@@ -137,26 +136,4 @@ class _FolderListScreenState extends State<FolderListScreen> {
       ),
     );
   }
-}
-
-Future<void> addFolderToPrefs(
-  BuildContext context, {
-  void Function(String folderPath)? onAdded,
-}) async {
-  var imageService = ImageServiceFactory.create();
-  var fileEntry = await imageService.pickDirectoryPath();
-  if (fileEntry == null || fileEntry.isDirectory == false) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
-    }
-    return;
-  }
-  String selectedDirectory = fileEntry.path;
-  final prefs = await SharedPreferences.getInstance();
-  final folders = prefs.getStringList('folders') ?? [];
-  folders.add(selectedDirectory);
-  await prefs.setStringList('folders', folders);
-  if (onAdded != null) onAdded(selectedDirectory);
 }
