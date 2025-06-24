@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:mygallery/platform/file_entry_android.dart';
 import 'package:mygallery/platform/file_entry_windows.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 
 const List<String> imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -13,21 +12,23 @@ abstract class FileEntry {
   String get name;
   String get path;
   Future<Uint8List> readAsBytes();
-  Future<String> getThumbnailPath();
-  Future<Uint8List> thumbnailReadAsBytes({int size = 128});
+  String getThumbnailPath(Directory cacheDir);
+  Future<Uint8List> thumbnailReadAsBytes(Directory cacheDir, {int size = 128});
 }
 
 mixin ThumbnailMixin on FileEntry {
   @override
-  Future<String> getThumbnailPath() async {
+  String getThumbnailPath(Directory cacheDir) {
     // サムネイルのパスを生成
-    final cacheDir = await getTemporaryDirectory();
     return '${cacheDir.path}/${path.hashCode}_thumb.jpg';
   }
 
   @override
-  Future<Uint8List> thumbnailReadAsBytes({int size = 128}) async {
-    final thumbPath = await getThumbnailPath();
+  Future<Uint8List> thumbnailReadAsBytes(
+    Directory cacheDir, {
+    int size = 128,
+  }) async {
+    final thumbPath = getThumbnailPath(cacheDir);
     final thumbFile = File(thumbPath);
 
     // サムネイルが存在しない場合は生成

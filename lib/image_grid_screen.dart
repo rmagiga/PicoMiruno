@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,12 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class ImageGridScreen extends ConsumerStatefulWidget {
   final String folderPath;
-  const ImageGridScreen({super.key, required this.folderPath});
+  final Directory cacheDir;
+  const ImageGridScreen({
+    super.key,
+    required this.folderPath,
+    required this.cacheDir,
+  });
 
   @override
   ConsumerState<ImageGridScreen> createState() => _ImageGridScreenState();
@@ -60,15 +66,16 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
 
   // flutter_cache_managerでサムネイル画像を取得
   Widget getImageSync(FileEntry entry) {
+    final cacheDir = widget.cacheDir;
     return FutureBuilder<Uint8List>(
       future: () async {
-        final thumbnailPath = await entry.getThumbnailPath();
+        final thumbnailPath = entry.getThumbnailPath(cacheDir);
         final cacheManager = DefaultCacheManager();
         final fileInfo = await cacheManager.getFileFromCache(thumbnailPath);
         if (fileInfo != null && await fileInfo.file.exists()) {
           return await fileInfo.file.readAsBytes();
         } else {
-          final thumbBytes = await entry.thumbnailReadAsBytes();
+          final thumbBytes = await entry.thumbnailReadAsBytes(cacheDir);
           final file = await cacheManager.putFile(
             thumbnailPath, // key
             thumbBytes,

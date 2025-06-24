@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:docman/docman.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mygallery/platform/file_entry.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'image_grid_screen.dart';
 import 'settings_screen.dart';
@@ -48,6 +51,7 @@ class FolderListScreen extends StatefulWidget {
 
 class _FolderListScreenState extends State<FolderListScreen> {
   List<String> _folders = [];
+  late Directory _cacheDir;
 
   @override
   void initState() {
@@ -56,6 +60,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
   }
 
   Future<void> _loadFolders() async {
+    _cacheDir = await getTemporaryDirectory();
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _folders = prefs.getStringList('folders') ?? [];
@@ -90,7 +95,9 @@ class _FolderListScreenState extends State<FolderListScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ImageGridScreen(folderPath: folderPath),
+        builder:
+            (context) =>
+                ImageGridScreen(folderPath: folderPath, cacheDir: _cacheDir),
       ),
     );
   }
