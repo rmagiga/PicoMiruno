@@ -45,6 +45,11 @@ class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
     }
     return bytes;
   }
+
+  @override
+  int getLastModifiedTime() {
+    return documentFile.lastModified;
+  }
 }
 
 class DocumentFileDirectoryEntry extends DirectoryEntry {
@@ -72,6 +77,7 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
     final documentFiles = await documentFile.listDocuments(
       extensions: imageExtensions,
     );
+    documentFiles.sort((a, b) => a.lastModified.compareTo(b.lastModified));
     return documentFiles.map((docFile) {
       return ImageDocumentFileEntry(docFile);
     }).toList();

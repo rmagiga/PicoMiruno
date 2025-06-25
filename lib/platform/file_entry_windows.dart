@@ -46,6 +46,11 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
   Future<Uint8List> readAsBytes() async {
     return await file.readAsBytes();
   }
+
+  @override
+  int getLastModifiedTime() {
+    return file.lastModifiedSync().millisecondsSinceEpoch;
+  }
 }
 
 class IOFileDirectoryEntry extends DirectoryEntry {
@@ -67,16 +72,19 @@ class IOFileDirectoryEntry extends DirectoryEntry {
     if (!exists) {
       return [];
     }
-    return directory
-        .listSync(followLinks: false)
-        .whereType<File>()
-        .where((file) {
-          return hasImageFile(file);
-        })
-        .map((file) {
-          return ImageFileEntry.fromFile(file);
-        })
-        .toList();
+    final files =
+        directory
+            .listSync(followLinks: false)
+            .whereType<File>()
+            .where((file) => hasImageFile(file))
+            .map((file) => ImageFileEntry.fromFile(file))
+            .toList();
+
+    files.sort((a, b) {
+      return a.getLastModifiedTime().compareTo(b.getLastModifiedTime());
+    });
+
+    return files;
   }
 
   bool hasImageFile(File file) {

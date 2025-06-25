@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mygallery/platform/file_entry.dart';
 import 'full_screen_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:quiver/collection.dart';
 
 class LimitedCacheManager extends CacheManager {
   static const key = 'limitedThumbCache';
@@ -45,6 +46,11 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   ScrollController? _scrollController;
   final directoryEntryFactory = DirectoryEntryFactory();
 
+  // サムネイルのLRUメモリキャッシュ（最大100件）
+  final _thumbMemoryCache = LruMap<String, Uint8List>(maximumSize: 100);
+  // サムネイル取得Futureのキャッシュ
+  final Map<String, Future<Uint8List>> _thumbFutureCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -76,7 +82,11 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
       _hasMore = _allEntriesBuffer.isNotEmpty;
       _isLoading = false;
     });
+    // 初回で2ページ分ロード
     await _loadNextPage();
+    if (_hasMore) {
+      await _loadNextPage();
+    }
   }
 
   void _onScroll() {
@@ -86,6 +96,52 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
       // 先読みを早めに
       _loadNextPage();
     }
+  }
+
+  // flutter_cache_managerとLRUキャッシュを使ったサムネイル取得
+  Widget getImageSync(FileEntry entry) {
+    final cacheDir = widget.cacheDir;
+    final thumbKey = entry.getThumbnailPath(cacheDir);
+    // メモリキャッシュにあれば即返す
+    if (_thumbMemoryCache.containsKey(thumbKey)) {
+      return Image.memory(
+        _thumbMemoryCache[thumbKey]!,
+        fit: BoxFit.cover,
+        gaplessPlayback: false,
+      );
+    }
+    // Futureをキャッシュしてちらつきを防ぐ
+    _thumbFutureCache[thumbKey] ??= () async {
+      final cacheManager = LimitedCacheManager();
+      final fileInfo = await cacheManager.getFileFromCache(thumbKey);
+      Uint8List bytes;
+      if (fileInfo != null && await fileInfo.file.exists()) {
+        bytes = await fileInfo.file.readAsBytes();
+      } else {
+        bytes = await entry.thumbnailReadAsBytes(cacheDir);
+        await cacheManager.putFile(thumbKey, bytes, fileExtension: 'jpg');
+      }
+      // メモリキャッシュに追加
+      _thumbMemoryCache[thumbKey] = bytes;
+      return bytes;
+    }();
+    return FutureBuilder<Uint8List>(
+      future: _thumbFutureCache[thumbKey],
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
+          return Image.memory(
+            snapshot.data!,
+            fit: BoxFit.cover,
+            gaplessPlayback: false,
+          );
+        } else if (snapshot.hasError) {
+          return const Icon(Icons.error, color: Colors.red);
+        } else {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+      },
+    );
   }
 
   Future<void> _prefetchThumbnails(List<FileEntry> entries) async {
@@ -109,6 +165,8 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
           continue;
         }
       }
+      // メモリキャッシュにも追加
+      _thumbMemoryCache[thumbnailPath] = bytes;
       if (mounted) {
         await precacheImage(MemoryImage(bytes), context);
       }
@@ -158,45 +216,9 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     );
   }
 
-  // flutter_cache_managerでサムネイル画像を取得
-  Widget getImageSync(FileEntry entry) {
-    final cacheDir = widget.cacheDir;
-    return FutureBuilder<Uint8List>(
-      future: () async {
-        final thumbnailPath = entry.getThumbnailPath(cacheDir);
-        final cacheManager = LimitedCacheManager();
-        final fileInfo = await cacheManager.getFileFromCache(thumbnailPath);
-        if (fileInfo != null && await fileInfo.file.exists()) {
-          return await fileInfo.file.readAsBytes();
-        } else {
-          final thumbBytes = await entry.thumbnailReadAsBytes(cacheDir);
-          final file = await cacheManager.putFile(
-            thumbnailPath, // key
-            thumbBytes,
-            fileExtension: 'jpg',
-          );
-          return await file.readAsBytes();
-        }
-      }(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData) {
-          return Image.memory(
-            snapshot.data!,
-            fit: BoxFit.cover,
-            gaplessPlayback: false, // メモリ解放しやすく
-          );
-        } else if (snapshot.hasError) {
-          return const Icon(Icons.error, color: Colors.red);
-        } else {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        }
-      },
-    );
-  }
-
   Widget _getThumbnail(int index) {
     return SizedBox(
+      key: ValueKey(allImageEntries[index].getThumbnailPath(widget.cacheDir)),
       width: 80,
       height: 80,
       child: getImageSync(allImageEntries[index]),
@@ -208,6 +230,17 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   }
 
   Widget _buildGridView() {
+    // 画面に必要なサムネイル数を計算
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final gridWidth = MediaQuery.of(context).size.width - 16; // padding分
+      final gridHeight = MediaQuery.of(context).size.height;
+      final crossAxisCount = (gridWidth / 90).floor();
+      final mainAxisCount = (gridHeight / 90).ceil();
+      final needCount = crossAxisCount * mainAxisCount;
+      if (allImageEntries.length < needCount && _hasMore && !_isLoading) {
+        _loadNextPage();
+      }
+    });
     return Stack(
       children: [
         Scrollbar(
@@ -256,6 +289,9 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
           );
         },
         child: GridTile(
+          key: ValueKey(
+            allImageEntries[index].getThumbnailPath(widget.cacheDir),
+          ),
           footer: _getThumbnailText(index),
           child: _getThumbnail(index),
         ),

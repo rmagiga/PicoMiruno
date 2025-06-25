@@ -14,6 +14,7 @@ abstract class FileEntry {
   Future<Uint8List> readAsBytes();
   String getThumbnailPath(Directory cacheDir);
   Future<Uint8List> thumbnailReadAsBytes(Directory cacheDir, {int size = 128});
+  int getLastModifiedTime();
 }
 
 mixin ThumbnailMixin on FileEntry {
