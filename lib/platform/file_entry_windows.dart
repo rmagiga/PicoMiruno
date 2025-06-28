@@ -1,10 +1,11 @@
 // file_entry_windows.dart
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 
 import 'file_entry.dart';
-import 'package:path/path.dart' as p;
 
 class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
   @override
@@ -14,7 +15,7 @@ class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
 
   @override
   Future<DirectoryEntry?> pickDirectory() async {
-    final directoryPath = await FilePicker.platform.getDirectoryPath();
+    final String? directoryPath = await FilePicker.platform.getDirectoryPath();
     if (directoryPath == null) {
       return null;
     }
@@ -23,9 +24,6 @@ class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
 }
 
 class ImageFileEntry extends FileEntry with ThumbnailMixin {
-  @override
-  final String path;
-  final File file;
 
   ImageFileEntry(this.path) : file = File(path) {
     if (!file.existsSync()) {
@@ -38,13 +36,16 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
       throw Exception('File does not exist: ${file.path}');
     }
   }
+  @override
+  final String path;
+  final File file;
 
   @override
   String get name => path.split(Platform.pathSeparator).last;
 
   @override
   Future<Uint8List> readAsBytes() async {
-    return await file.readAsBytes();
+    return file.readAsBytes();
   }
 
   @override
@@ -54,33 +55,33 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
 }
 
 class IOFileDirectoryEntry extends DirectoryEntry {
-  @override
-  final String path;
-  final Directory directory;
   IOFileDirectoryEntry(this.path) : directory = Directory(path) {
     if (!directory.existsSync()) {
       throw Exception('Directory does not exist: $path');
     }
   }
+  @override
+  final String path;
+  final Directory directory;
 
   @override
   String get name => path.split(Platform.pathSeparator).last;
 
   @override
   Future<List<FileEntry>> listFiles() async {
-    bool exists = await directory.exists();
+    final bool exists = directory.existsSync();
     if (!exists) {
-      return [];
+      return <FileEntry>[];
     }
-    final files =
+    final List<ImageFileEntry> files =
         directory
             .listSync(followLinks: false)
             .whereType<File>()
-            .where((file) => hasImageFile(file))
-            .map((file) => ImageFileEntry.fromFile(file))
+            .where((File file) => hasImageFile(file))
+            .map((File file) => ImageFileEntry.fromFile(file))
             .toList();
 
-    files.sort((a, b) {
+    files.sort((ImageFileEntry a, ImageFileEntry b) {
       return a.getLastModifiedTime().compareTo(b.getLastModifiedTime());
     });
 
@@ -88,7 +89,7 @@ class IOFileDirectoryEntry extends DirectoryEntry {
   }
 
   bool hasImageFile(File file) {
-    String extension = p.extension(file.path).toLowerCase();
+    final String extension = p.extension(file.path).toLowerCase();
     return imageExtensions.contains(extension);
   }
 }

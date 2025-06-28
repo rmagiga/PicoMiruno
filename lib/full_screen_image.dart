@@ -2,18 +2,19 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:mygallery/platform/file_entry.dart';
 import 'package:photo_view/photo_view.dart';
 
-class FullScreenImage extends StatefulWidget {
-  final List<FileEntry> fileEntries;
-  final int initialIndex;
+import 'platform/file_entry.dart';
 
+class FullScreenImage extends StatefulWidget {
   const FullScreenImage({
     super.key,
     required this.fileEntries,
     required this.initialIndex,
   });
+
+  final List<FileEntry> fileEntries;
+  final int initialIndex;
 
   @override
   State<FullScreenImage> createState() => _FullScreenImageState();
@@ -22,7 +23,7 @@ class FullScreenImage extends StatefulWidget {
 class _FullScreenImageState extends State<FullScreenImage> {
   late PageController _pageController;
   late int _currentIndex;
-  final cacheManager = DefaultCacheManager();
+  final DefaultCacheManager cacheManager = DefaultCacheManager();
 
   @override
   void initState() {
@@ -39,23 +40,23 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
   Future<Uint8List> _getImageBytesWithCache(FileEntry fileEntry) async {
     // メモリキャッシュ優先
-    final imagePath = fileEntry.path;
-    final cachedFile = await cacheManager.getFileFromCache(imagePath);
+    final String imagePath = fileEntry.path;
+    final FileInfo? cachedFile = await cacheManager.getFileFromCache(imagePath);
     if (cachedFile != null && await cachedFile.file.exists()) {
-      return await cachedFile.file.readAsBytes();
+      return cachedFile.file.readAsBytes();
     }
-    final bytes = await fileEntry.readAsBytes();
+    final Uint8List bytes = await fileEntry.readAsBytes();
     await cacheManager.putFile(imagePath, bytes);
     return bytes;
   }
 
   // flutter_cache_managerの利用をやめ、ImageServiceのgetImageByteを使う
   Widget getImageSync(FileEntry fileEntry, int index) {
-    final imagePath = fileEntry.path;
+    final String imagePath = fileEntry.path;
 
     return FutureBuilder<Uint8List>(
       future: _getImageBytesWithCache(fileEntry),
-      builder: (context, snapshot) {
+      builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.hasData) {
           return _buildPhotoView(snapshot.data!, imagePath, index);
@@ -75,7 +76,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
     bool isPlaceholder = false,
   }) {
     return Stack(
-      children: [
+      children: <Widget>[
         PhotoView(
           imageProvider: MemoryImage(bytes),
           minScale: PhotoViewComputedScale.contained * 0.5,
@@ -91,7 +92,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           alignment: Alignment.centerLeft,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onHorizontalDragEnd: (details) {
+            onHorizontalDragEnd: (DragEndDetails details) {
               if (details.primaryVelocity != null &&
                   details.primaryVelocity! > 0) {
                 if (index > 0) {
@@ -118,7 +119,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           alignment: Alignment.centerRight,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onHorizontalDragEnd: (details) {
+            onHorizontalDragEnd: (DragEndDetails details) {
               if (details.primaryVelocity != null &&
                   details.primaryVelocity! < 0) {
                 if (index < widget.fileEntries.length - 1) {
@@ -161,12 +162,12 @@ class _FullScreenImageState extends State<FullScreenImage> {
         controller: _pageController,
         itemCount: widget.fileEntries.length,
         physics: const ClampingScrollPhysics(),
-        onPageChanged: (index) {
+        onPageChanged: (int index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        itemBuilder: (context, index) {
+        itemBuilder: (BuildContext context, int index) {
           return Center(child: getImageSync(widget.fileEntries[index], index));
         },
       ),

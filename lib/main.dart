@@ -3,10 +3,11 @@ import 'dart:io';
 import 'package:docman/docman.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mygallery/platform/file_entry.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'image_grid_screen.dart';
+import 'platform/file_entry.dart';
 import 'settings_screen.dart';
 import 'theme_mode_provider.dart';
 import 'thumbnail_config_provider.dart';
@@ -14,8 +15,8 @@ import 'thumbnail_config_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // すべての設定をロード
-  final container = ProviderContainer();
-  await Future.wait([
+  final ProviderContainer container = ProviderContainer();
+  await Future.wait(<Future<void>>[
     container.read(themeModeProvider.notifier).loadFromStorage(),
     container.read(thumbnailConfigProvider.notifier).loadFromStorage(),
   ]);
@@ -27,7 +28,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final ThemeMode themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Gallery App',
@@ -37,7 +38,7 @@ class MyApp extends ConsumerWidget {
       darkTheme: ThemeData.dark(),
       themeMode: themeMode,
       home: const FolderListScreen(),
-      routes: {'/settings': (context) => const SettingsScreen()},
+      routes: <String, WidgetBuilder>{'/settings': (BuildContext context) => const SettingsScreen()},
     );
   }
 }
@@ -50,7 +51,7 @@ class FolderListScreen extends StatefulWidget {
 }
 
 class _FolderListScreenState extends State<FolderListScreen> {
-  List<String> _folders = [];
+  List<String> _folders = <String>[];
   late Directory _cacheDir;
 
   @override
@@ -61,19 +62,21 @@ class _FolderListScreenState extends State<FolderListScreen> {
 
   Future<void> _loadFolders() async {
     _cacheDir = await getTemporaryDirectory();
-    final prefs = await SharedPreferences.getInstance();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _folders = prefs.getStringList('folders') ?? [];
+      _folders = prefs.getStringList('folders') ?? <String>[];
     });
   }
 
   Future<DocumentFile?> pickDirectoryPath() => DocMan.pick.directory();
 
   Future<void> _addFolder() async {
-    final directoryEntry = await DirectoryEntryFactory().pickDirectory();
+    final DirectoryEntry? directoryEntry = await DirectoryEntryFactory().pickDirectory();
 
     if (directoryEntry == null) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       // ユーザーがフォルダを選択しなかった場合の処理
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -83,8 +86,8 @@ class _FolderListScreenState extends State<FolderListScreen> {
       return;
     }
 
-    String selectedDirectory = directoryEntry.path;
-    final prefs = await SharedPreferences.getInstance();
+    final String selectedDirectory = directoryEntry.path;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _folders.add(selectedDirectory);
       prefs.setStringList('folders', _folders);
@@ -94,9 +97,9 @@ class _FolderListScreenState extends State<FolderListScreen> {
   void _openFolder(String folderPath) {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<dynamic>(
         builder:
-            (context) =>
+            (BuildContext context) =>
                 ImageGridScreen(folderPath: folderPath, cacheDir: _cacheDir),
       ),
     );
@@ -107,7 +110,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('フォルダ一覧'),
-        actions: [
+        actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -119,13 +122,13 @@ class _FolderListScreenState extends State<FolderListScreen> {
       ),
       body: ListView.builder(
         itemCount: _folders.length,
-        itemBuilder: (context, index) {
+        itemBuilder: (BuildContext context, int index) {
           return ListTile(
             title: Text(_folders[index]),
             trailing: IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
+                final SharedPreferences prefs = await SharedPreferences.getInstance();
                 setState(() {
                   _folders.removeAt(index);
                   prefs.setStringList('folders', _folders);

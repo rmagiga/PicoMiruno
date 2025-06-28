@@ -13,7 +13,7 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
   @override
   Future<DirectoryEntry?> pickDirectory() async {
     // Android用のフォルダ選択ロジックを実装
-    var documentFile = await DocMan.pick.directory();
+    final DocumentFile? documentFile = await DocMan.pick.directory();
     if (documentFile != null) {
       return DocumentFileDirectoryEntry.fromDocumentFile(documentFile);
     }
@@ -23,23 +23,23 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
 }
 
 class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
-  @override
-  final String path;
-  final DocumentFile documentFile;
 
   ImageDocumentFileEntry(this.documentFile)
-    : path = documentFile.uri.toString() {
+    : path = documentFile.uri {
     if (documentFile.isFile) {
       throw Exception('Not a file: $path');
     }
   }
+  @override
+  final String path;
+  final DocumentFile documentFile;
 
   @override
   String get name => documentFile.name;
 
   @override
   Future<Uint8List> readAsBytes() async {
-    final bytes = await documentFile.read();
+    final Uint8List? bytes = await documentFile.read();
     if (bytes == null || bytes.isEmpty) {
       throw Exception('Failed to read file: $path');
     }
@@ -53,12 +53,9 @@ class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
 }
 
 class DocumentFileDirectoryEntry extends DirectoryEntry {
-  @override
-  final String path;
-  late DocumentFile documentFile;
 
   DocumentFileDirectoryEntry(this.path) {
-    DocumentFile.fromUri(path).then((docFile) {
+    DocumentFile.fromUri(path).then((DocumentFile? docFile) {
       if (docFile == null || docFile.isFile) {
         throw Exception('Document file does not exist: $path');
       }
@@ -67,18 +64,21 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
   }
 
   DocumentFileDirectoryEntry.fromDocumentFile(this.documentFile)
-    : path = documentFile.uri.toString();
+    : path = documentFile.uri;
+  @override
+  final String path;
+  late DocumentFile documentFile;
 
   @override
   String get name => path.split('/').last;
 
   @override
   Future<List<FileEntry>> listFiles() async {
-    final documentFiles = await documentFile.listDocuments(
+    final List<DocumentFile> documentFiles = await documentFile.listDocuments(
       extensions: imageExtensions,
     );
-    documentFiles.sort((a, b) => a.lastModified.compareTo(b.lastModified));
-    return documentFiles.map((docFile) {
+    documentFiles.sort((DocumentFile a, DocumentFile b) => a.lastModified.compareTo(b.lastModified));
+    return documentFiles.map((DocumentFile docFile) {
       return ImageDocumentFileEntry(docFile);
     }).toList();
   }

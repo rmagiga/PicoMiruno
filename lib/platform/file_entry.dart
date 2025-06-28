@@ -2,11 +2,12 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:mygallery/platform/file_entry_android.dart';
-import 'package:mygallery/platform/file_entry_windows.dart';
 import 'package:image/image.dart' as img;
 
-const List<String> imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+import 'file_entry_android.dart';
+import 'file_entry_windows.dart';
+
+const List<String> imageExtensions = <String>['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
 abstract class FileEntry {
   String get name;
@@ -29,19 +30,21 @@ mixin ThumbnailMixin on FileEntry {
     Directory cacheDir, {
     int size = 128,
   }) async {
-    final thumbPath = getThumbnailPath(cacheDir);
-    final thumbFile = File(thumbPath);
+    final String thumbPath = getThumbnailPath(cacheDir);
+    final File thumbFile = File(thumbPath);
 
     // サムネイルが存在しない場合は生成
     if (!thumbFile.existsSync()) {
-      final bytes = await readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image == null) throw Exception('画像のデコードに失敗しました');
-      final thumbnail = img.copyResize(image, width: size, height: size);
+      final Uint8List bytes = await readAsBytes();
+      final img.Image? image = img.decodeImage(bytes);
+      if (image == null) {
+        throw Exception('画像のデコードに失敗しました');
+      }
+      final img.Image thumbnail = img.copyResize(image, width: size, height: size);
       await thumbFile.writeAsBytes(img.encodeJpg(thumbnail));
     }
 
-    return await thumbFile.readAsBytes();
+    return thumbFile.readAsBytes();
   }
 }
 
@@ -52,8 +55,6 @@ abstract class DirectoryEntry {
 }
 
 abstract class DirectoryEntryFactory {
-  DirectoryEntry create(String path);
-  Future<DirectoryEntry?> pickDirectory();
 
   factory DirectoryEntryFactory() {
     if (Platform.isAndroid || Platform.isIOS) {
@@ -62,4 +63,6 @@ abstract class DirectoryEntryFactory {
       return IOFileDirectoryEntryFactory();
     }
   }
+  DirectoryEntry create(String path);
+  Future<DirectoryEntry?> pickDirectory();
 }
