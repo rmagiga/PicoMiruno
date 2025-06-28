@@ -1,4 +1,5 @@
 // abstract_file_entry.dart
+import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -26,10 +27,7 @@ mixin ThumbnailMixin on FileEntry {
   }
 
   @override
-  Future<Uint8List> thumbnailReadAsBytes(
-    Directory cacheDir, {
-    int size = 128,
-  }) async {
+  Future<Uint8List> thumbnailReadAsBytes(Directory cacheDir, {int size = 128}) async {
     final String thumbPath = getThumbnailPath(cacheDir);
     final File thumbFile = File(thumbPath);
 
@@ -38,6 +36,7 @@ mixin ThumbnailMixin on FileEntry {
       final Uint8List bytes = await readAsBytes();
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) {
+        log('Failed to decode image: $path');
         throw Exception('画像のデコードに失敗しました');
       }
       final img.Image thumbnail = img.copyResize(image, width: size, height: size);
@@ -56,7 +55,6 @@ abstract class DirectoryEntry {
 }
 
 abstract class DirectoryEntryFactory {
-
   factory DirectoryEntryFactory() {
     if (Platform.isAndroid || Platform.isIOS) {
       return DocumentFileDirectoryEntryFactory();

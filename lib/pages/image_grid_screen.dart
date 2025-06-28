@@ -4,9 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'full_screen_image.dart';
-import 'platform/file_entry.dart';
-import 'utils/thumbnail_provider.dart';
+import '../constants/app_constants.dart';
+import '../platform/file_entry.dart';
+import '../utils/thumbnail_provider.dart';
 
 class ImageGridScreen extends ConsumerStatefulWidget {
   const ImageGridScreen({
@@ -73,15 +73,10 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
                   final FileEntry entry = files[index];
                   return GestureDetector(
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<dynamic>(
-                          builder:
-                              (BuildContext context) => FullScreenImage(
-                                fileEntries: files,
-                                initialIndex: index,
-                              ),
-                        ),
-                      );
+                      Navigator.pushNamed(context, Routes.fullScreenImage, arguments: <String, Object>{
+                        'fileEntries': files,
+                        'initialIndex': index,
+                      });
                     },
                     child: FutureBuilder<Uint8List>(
                       future: _thumbnailProvider.getThumbnail(entry),

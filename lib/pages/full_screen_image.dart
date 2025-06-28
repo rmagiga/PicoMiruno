@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:photo_view/photo_view.dart';
 
-import 'platform/file_entry.dart';
+import '../platform/file_entry.dart';
 
 class FullScreenImage extends StatefulWidget {
   const FullScreenImage({

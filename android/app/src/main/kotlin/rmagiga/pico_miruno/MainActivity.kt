@@ -1,4 +1,4 @@
-package com.example.mygallery
+package rmagiga.pico_miruno
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,4 +1,5 @@
 // file_entry_windows.dart
+import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -24,15 +25,16 @@ class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
 }
 
 class ImageFileEntry extends FileEntry with ThumbnailMixin {
-
   ImageFileEntry(this.path) : file = File(path) {
     if (!file.existsSync()) {
+      log('File does not exist: $path');
       throw Exception('File does not exist: $path');
     }
   }
 
   ImageFileEntry.fromFile(this.file) : path = file.path {
     if (!file.existsSync()) {
+      log('File does not exist: ${file.path}');
       throw Exception('File does not exist: ${file.path}');
     }
   }
@@ -57,6 +59,7 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
 class IOFileDirectoryEntry extends DirectoryEntry {
   IOFileDirectoryEntry(this.path) : directory = Directory(path) {
     if (!directory.existsSync()) {
+      log('Directory does not exist: $path');
       throw Exception('Directory does not exist: $path');
     }
   }
