@@ -51,6 +51,7 @@ mixin ThumbnailMixin on FileEntry {
 abstract class DirectoryEntry {
   String get name;
   String get path;
+  String get viewPath;
   Future<List<FileEntry>> listFiles();
 }
 
@@ -63,6 +64,6 @@ abstract class DirectoryEntryFactory {
       return IOFileDirectoryEntryFactory();
     }
   }
-  DirectoryEntry create(String path);
+  Future<DirectoryEntry> create(String path);
   Future<DirectoryEntry?> pickDirectory();
 }

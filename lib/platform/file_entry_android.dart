@@ -1,4 +1,5 @@
 // file_entry_android.dart
+import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:docman/docman.dart';
@@ -6,8 +7,12 @@ import 'file_entry.dart';
 
 class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
   @override
-  DirectoryEntry create(String path) {
-    return DocumentFileDirectoryEntry(path);
+  Future<DirectoryEntry> create(String path) async {
+    final DocumentFile? documentFile = await DocumentFile.fromUri(path);
+    if (documentFile == null || documentFile.isFile || !documentFile.exists) {
+      throw Exception('Document file does not exist: $path');
+    }
+    return DocumentFileDirectoryEntry(documentFile);
   }
 
   @override
@@ -15,7 +20,7 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
     // Android用のフォルダ選択ロジックを実装
     final DocumentFile? documentFile = await DocMan.pick.directory();
     if (documentFile != null) {
-      return DocumentFileDirectoryEntry.fromDocumentFile(documentFile);
+      return DocumentFileDirectoryEntry(documentFile);
     }
     // フォルダが選択されなかった場合はnullを返す
     return null;
@@ -23,13 +28,12 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
 }
 
 class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
-
-  ImageDocumentFileEntry(this.documentFile)
-    : path = documentFile.uri {
-    if (documentFile.isFile) {
+  ImageDocumentFileEntry(this.documentFile) : path = documentFile.uri {
+    if (!documentFile.isFile || !documentFile.exists) {
       throw Exception('Not a file: $path');
     }
   }
+
   @override
   final String path;
   final DocumentFile documentFile;
@@ -53,33 +57,39 @@ class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
 }
 
 class DocumentFileDirectoryEntry extends DirectoryEntry {
+  DocumentFileDirectoryEntry(this.documentFile) : path = documentFile.uri;
 
-  DocumentFileDirectoryEntry(this.path) {
-    DocumentFile.fromUri(path).then((DocumentFile? docFile) {
-      if (docFile == null || docFile.isFile) {
-        throw Exception('Document file does not exist: $path');
-      }
-      documentFile = docFile;
-    });
-  }
-
-  DocumentFileDirectoryEntry.fromDocumentFile(this.documentFile)
-    : path = documentFile.uri;
   @override
   final String path;
   late DocumentFile documentFile;
 
   @override
-  String get name => path.split('/').last;
+  String get name => Uri.decodeFull(path.split('/').last);
+  @override
+  String get viewPath => Uri.decodeFull(path);
 
   @override
   Future<List<FileEntry>> listFiles() async {
-    final List<DocumentFile> documentFiles = await documentFile.listDocuments(
-      extensions: imageExtensions,
+    late final List<DocumentFile> documentFiles;
+    try {
+      documentFiles = await documentFile.listDocuments();
+    } catch (e) {
+      log('Failed to list files in directory: $path, error: $e');
+      throw Exception('Failed to list files in directory: $path, error: $e');
+    }
+    if (documentFiles.isEmpty) {
+      return [];
+    }
+    documentFiles.sort(
+      (DocumentFile a, DocumentFile b) => a.lastModified.compareTo(b.lastModified),
     );
-    documentFiles.sort((DocumentFile a, DocumentFile b) => a.lastModified.compareTo(b.lastModified));
-    return documentFiles.map((DocumentFile docFile) {
+
+    for (final DocumentFile c in documentFiles) {
+      log('Document file: ${c.name}, last modified: ${c.lastModified}');
+    }
+    final List<FileEntry> fileEntries = documentFiles.map((DocumentFile docFile) {
       return ImageDocumentFileEntry(docFile);
     }).toList();
+    return fileEntries;
   }
 }

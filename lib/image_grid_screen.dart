@@ -11,10 +11,10 @@ import 'utils/thumbnail_provider.dart';
 class ImageGridScreen extends ConsumerStatefulWidget {
   const ImageGridScreen({
     super.key,
-    required this.folderPath,
+    required this.directoryEntry,
     required this.cacheDir,
   });
-  final String folderPath;
+  final DirectoryEntry directoryEntry;
   final Directory cacheDir;
 
   @override
@@ -25,6 +25,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   late Future<List<FileEntry>> _filesFuture;
   late final ThumbnailProvider _thumbnailProvider;
   final double _itemWidth = 120;
+  final DirectoryEntryFactory factory = DirectoryEntryFactory();
 
   @override
   void initState() {
@@ -34,9 +35,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   }
 
   Future<List<FileEntry>> _loadFiles() async {
-    final DirectoryEntryFactory factory = DirectoryEntryFactory();
-    final DirectoryEntry dirEntry = factory.create(widget.folderPath);
-    final List<FileEntry> files = await dirEntry.listFiles();
+    final List<FileEntry> files = await widget.directoryEntry.listFiles();
     files.sort(
       (FileEntry a, FileEntry b) => b.getLastModifiedTime().compareTo(a.getLastModifiedTime()),
     );
@@ -46,7 +45,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.folderPath)),
+      appBar: AppBar(title: Text(widget.directoryEntry.name)),
       body: FutureBuilder<List<FileEntry>>(
         future: _filesFuture,
         builder: (BuildContext context, AsyncSnapshot<List<FileEntry>> snapshot) {

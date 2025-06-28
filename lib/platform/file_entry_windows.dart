@@ -9,7 +9,7 @@ import 'file_entry.dart';
 
 class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
   @override
-  DirectoryEntry create(String path) {
+  Future<DirectoryEntry> create(String path) async {
     return IOFileDirectoryEntry(path);
   }
 
@@ -63,6 +63,8 @@ class IOFileDirectoryEntry extends DirectoryEntry {
   @override
   final String path;
   final Directory directory;
+  @override
+  String get viewPath => path;
 
   @override
   String get name => path.split(Platform.pathSeparator).last;

@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:docman/docman.dart';
@@ -51,8 +52,9 @@ class FolderListScreen extends StatefulWidget {
 }
 
 class _FolderListScreenState extends State<FolderListScreen> {
-  List<String> _folders = <String>[];
+  List<DirectoryEntry> _directoryEntries = <DirectoryEntry>[];
   late Directory _cacheDir;
+  final DirectoryEntryFactory _factory = DirectoryEntryFactory();
 
   @override
   void initState() {
@@ -63,8 +65,20 @@ class _FolderListScreenState extends State<FolderListScreen> {
   Future<void> _loadFolders() async {
     _cacheDir = await getTemporaryDirectory();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final List<String> savedFolders = prefs.getStringList('folders') ?? <String>[];
+
+    final List<DirectoryEntry> directoryEntries = <DirectoryEntry>[];
+    for (final String path in savedFolders) {
+      try {
+        final DirectoryEntry directoryEntry = await _factory.create(path);
+        directoryEntries.add(directoryEntry);
+      } catch (e) {
+        // エラーが発生した場合はログに出力し、フォルダをスキップ
+        log('Error loading directory entry for $path: $e');
+      }
+    }
     setState(() {
-      _folders = prefs.getStringList('folders') ?? <String>[];
+      _directoryEntries = directoryEntries;
     });
   }
 
@@ -86,21 +100,20 @@ class _FolderListScreenState extends State<FolderListScreen> {
       return;
     }
 
-    final String selectedDirectory = directoryEntry.path;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _folders.add(selectedDirectory);
-      prefs.setStringList('folders', _folders);
+      _directoryEntries.add(directoryEntry);
+      prefs.setStringList('folders', _directoryEntries.map((DirectoryEntry entry) => entry.path).toList());
     });
   }
 
-  void _openFolder(String folderPath) {
+  void _openFolder(DirectoryEntry directoryEntry) {
     Navigator.push(
       context,
       MaterialPageRoute<dynamic>(
         builder:
             (BuildContext context) =>
-                ImageGridScreen(folderPath: folderPath, cacheDir: _cacheDir),
+                ImageGridScreen(directoryEntry: directoryEntry, cacheDir: _cacheDir),
       ),
     );
   }
@@ -121,21 +134,21 @@ class _FolderListScreenState extends State<FolderListScreen> {
         ],
       ),
       body: ListView.builder(
-        itemCount: _folders.length,
+        itemCount: _directoryEntries.length,
         itemBuilder: (BuildContext context, int index) {
           return ListTile(
-            title: Text(_folders[index]),
+            title: Text(_directoryEntries[index].viewPath),
             trailing: IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () async {
                 final SharedPreferences prefs = await SharedPreferences.getInstance();
                 setState(() {
-                  _folders.removeAt(index);
-                  prefs.setStringList('folders', _folders);
+                  _directoryEntries.removeAt(index);
+                  prefs.setStringList('folders', _directoryEntries.map((DirectoryEntry entry) => entry.path).toList());
                 });
               },
             ),
-            onTap: () => _openFolder(_folders[index]),
+            onTap: () => _openFolder(_directoryEntries[index]),
           );
         },
       ),
