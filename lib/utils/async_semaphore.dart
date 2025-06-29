@@ -2,8 +2,8 @@ import 'dart:async';
 
 /// 並列実行数を制限するためのシンプルなPoolクラス
 class AsyncSemaphore {
-
   AsyncSemaphore(this._maxConcurrent);
+
   final int _maxConcurrent;
   int _current = 0;
   final List<Completer<void>> _waiters = <Completer<void>>[];

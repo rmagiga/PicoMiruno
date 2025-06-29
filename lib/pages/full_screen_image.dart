@@ -7,11 +7,7 @@ import 'package:photo_view/photo_view.dart';
 import '../platform/file_entry.dart';
 
 class FullScreenImage extends StatefulWidget {
-  const FullScreenImage({
-    super.key,
-    required this.fileEntries,
-    required this.initialIndex,
-  });
+  const FullScreenImage({super.key, required this.fileEntries, required this.initialIndex});
 
   final List<FileEntry> fileEntries;
   final int initialIndex;
@@ -57,8 +53,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
     return FutureBuilder<Uint8List>(
       future: _getImageBytesWithCache(fileEntry),
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
           return _buildPhotoView(snapshot.data!, imagePath, index);
         } else if (snapshot.hasError) {
           return const Icon(Icons.error, color: Colors.red);
@@ -93,8 +88,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onHorizontalDragEnd: (DragEndDetails details) {
-              if (details.primaryVelocity != null &&
-                  details.primaryVelocity! > 0) {
+              if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
                 if (index > 0) {
                   _pageController.previousPage(
                     duration: const Duration(milliseconds: 200),
@@ -120,8 +114,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onHorizontalDragEnd: (DragEndDetails details) {
-              if (details.primaryVelocity != null &&
-                  details.primaryVelocity! < 0) {
+              if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
                 if (index < widget.fileEntries.length - 1) {
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 200),
@@ -155,9 +148,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${_currentIndex + 1} / ${widget.fileEntries.length}'),
-      ),
+      appBar: AppBar(title: Text('${_currentIndex + 1} / ${widget.fileEntries.length}')),
       body: PageView.builder(
         controller: _pageController,
         itemCount: widget.fileEntries.length,

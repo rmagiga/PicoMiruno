@@ -12,10 +12,15 @@ const List<String> imageExtensions = <String>['.jpg', '.jpeg', '.png', '.gif', '
 
 abstract class FileEntry {
   String get name;
+
   String get path;
+
   Future<Uint8List> readAsBytes();
+
   String getThumbnailPath(Directory cacheDir);
+
   Future<Uint8List> thumbnailReadAsBytes(Directory cacheDir, {int size = 128});
+
   int getLastModifiedTime();
 }
 
@@ -49,8 +54,11 @@ mixin ThumbnailMixin on FileEntry {
 
 abstract class DirectoryEntry {
   String get name;
+
   String get path;
+
   String get viewPath;
+
   Future<List<FileEntry>> listFiles();
 }
 
@@ -62,6 +70,8 @@ abstract class DirectoryEntryFactory {
       return IOFileDirectoryEntryFactory();
     }
   }
+
   Future<DirectoryEntry> create(String path);
+
   Future<DirectoryEntry?> pickDirectory();
 }

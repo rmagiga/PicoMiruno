@@ -12,10 +12,10 @@ class SettingsScreen extends ConsumerWidget {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
     final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
     final TextEditingController countController = TextEditingController(
-      text: thumbnailConfig.maxCount.toString(),
+      text: thumbnailConfig.stalePeriodDays.toString(),
     );
     final TextEditingController bytesController = TextEditingController(
-      text: (thumbnailConfig.maxBytes ~/ (1024 * 1024)).toString(),
+      text: thumbnailConfig.maxDiskThumbnailCount.toString(),
     );
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),
@@ -39,20 +39,18 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 32),
-            const Text('サムネイルキャッシュ最大数', style: TextStyle(fontSize: 16)),
+            const Text('サムネイルキャッシュ日数', style: TextStyle(fontSize: 16)),
             Row(
               children: <Widget>[
                 Expanded(
                   child: TextField(
                     controller: countController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(suffixText: '個'),
+                    decoration: const InputDecoration(suffixText: '日'),
                     onChanged: (String value) {
                       final int? v = int.tryParse(value);
                       if (v != null && v > 0) {
-                        ref
-                            .read(thumbnailConfigProvider.notifier)
-                            .setMaxCount(v);
+                        ref.read(thumbnailConfigProvider.notifier).setStalePeriodDays(v);
                       }
                     },
                   ),
@@ -60,20 +58,18 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            const Text('サムネイルキャッシュ最大容量 (MB)', style: TextStyle(fontSize: 16)),
+            const Text('サムネイルキャッシュ最大個数', style: TextStyle(fontSize: 16)),
             Row(
               children: <Widget>[
                 Expanded(
                   child: TextField(
                     controller: bytesController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(suffixText: 'MB'),
+                    decoration: const InputDecoration(suffixText: '個'),
                     onChanged: (String value) {
                       final int? v = int.tryParse(value);
                       if (v != null && v > 0) {
-                        ref
-                            .read(thumbnailConfigProvider.notifier)
-                            .setMaxBytes(v * 1024 * 1024);
+                        ref.read(thumbnailConfigProvider.notifier).setMaxDiskThumbnailCount(v);
                       }
                     },
                   ),

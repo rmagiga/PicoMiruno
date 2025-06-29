@@ -38,6 +38,7 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
       throw Exception('File does not exist: ${file.path}');
     }
   }
+
   @override
   final String path;
   final File file;
@@ -63,9 +64,11 @@ class IOFileDirectoryEntry extends DirectoryEntry {
       throw Exception('Directory does not exist: $path');
     }
   }
+
   @override
   final String path;
   final Directory directory;
+
   @override
   String get viewPath => path;
 

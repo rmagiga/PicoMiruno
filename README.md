@@ -1,16 +1,50 @@
-# mygallery
+# PicoMiruno
 
-A new Flutter project.
+PicoMirunoはFlutter製のクロスプラットフォーム画像ビューアアプリです。
 
-## Getting Started
+## 主な機能
+- フォルダごとの画像一覧表示（複数フォルダ管理）
+- サムネイル生成・キャッシュ（キャッシュ日数・最大個数の設定可）
+- 画像のフルスクリーン表示（スワイプで前後移動）
+- テーマ切り替え（ライト/ダーク/システム）
+- 設定画面（テーマ・サムネイルキャッシュ設定）
+- フォルダ追加・削除
+- Android/Windows対応
 
-This project is a starting point for a Flutter application.
+## 使い方
 
-A few resources to get you started if this is your first Flutter project:
+1. 必要なパッケージのインストール
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```
+flutter pub get
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2. アプリの起動
+
+```
+flutter run
+```
+
+## ディレクトリ構成
+
+- `lib/`
+  - `main.dart` : エントリーポイント
+  - `pages/` : 画面ウィジェット（フォルダ一覧・画像グリッド・フルスクリーン・設定）
+  - `constants/` : ルートや設定値などの定数
+  - `platform/` : プラットフォームごとのファイル・ディレクトリ操作
+  - `provider/` : Riverpodによる状態管理
+  - `infrastructure/` : 設定・フォルダ情報の保存
+  - `utils/` : サムネイル生成・キャッシュ・非同期制御
+
+## 主な依存パッケージ
+- flutter_riverpod
+- shared_preferences
+- path_provider
+- flutter_cache_manager
+- file_picker
+- photo_view
+- image（画像処理）
+
+## ライセンス
+
+このプロジェクトはMITライセンスです。

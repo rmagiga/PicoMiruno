@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:docman/docman.dart';
+
 import 'file_entry.dart';
 
 class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
@@ -68,6 +69,7 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
 
   @override
   String get name => Uri.decodeFull(path.split('/').last);
+
   @override
   String get viewPath => Uri.decodeFull(path);
 

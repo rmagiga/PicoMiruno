@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-final StateNotifierProvider<ThemeModeNotifier, ThemeMode> themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
-  (StateNotifierProviderRef<ThemeModeNotifier, ThemeMode> ref) => ThemeModeNotifier(),
-);
+import '../constants/app_constants.dart';
+import '../infrastructure/setting.dart';
+
+final StateNotifierProvider<ThemeModeNotifier, ThemeMode> themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
+      (StateNotifierProviderRef<ThemeModeNotifier, ThemeMode> ref) => ThemeModeNotifier(),
+    );
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   ThemeModeNotifier() : super(ThemeMode.system) {
@@ -12,11 +15,10 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   Future<void> _loadThemeMode() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? mode = prefs.getString('theme_mode');
-    if (mode == 'light') {
+    final String mode = await settingsStorage.getString(Settings.themeMode, ThemeMode.system.name);
+    if (mode == ThemeMode.light.name) {
       state = ThemeMode.light;
-    } else if (mode == 'dark') {
+    } else if (mode == ThemeMode.dark.name) {
       state = ThemeMode.dark;
     } else {
       state = ThemeMode.system;
@@ -25,14 +27,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
   Future<void> setThemeMode(ThemeMode mode) async {
     state = mode;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (mode == ThemeMode.light) {
-      prefs.setString('theme_mode', 'light');
-    } else if (mode == ThemeMode.dark) {
-      prefs.setString('theme_mode', 'dark');
-    } else {
-      prefs.setString('theme_mode', 'system');
-    }
+    await settingsStorage.setString(Settings.themeMode, mode.name);
   }
 
   Future<void> loadFromStorage() async {

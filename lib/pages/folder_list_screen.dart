@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';
+import '../infrastructure/folders.dart';
 import '../platform/file_entry.dart';
 import 'image_grid_screen.dart';
 
@@ -15,10 +15,12 @@ class FolderListScreen extends StatefulWidget {
   @override
   State<FolderListScreen> createState() => _FolderListScreenState();
 }
+
 class _FolderListScreenState extends State<FolderListScreen> {
   List<DirectoryEntry> _directoryEntries = <DirectoryEntry>[];
   late Directory _cacheDir;
   final DirectoryEntryFactory _factory = DirectoryEntryFactory();
+  final FoldersRepository _foldersRepository = SharedPreferencesFoldersRepository();
 
   @override
   void initState() {
@@ -28,8 +30,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
 
   Future<void> _loadFolders() async {
     _cacheDir = await getTemporaryDirectory();
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<String> savedFolders = prefs.getStringList('folders') ?? <String>[];
+    final List<String> savedFolders = await _foldersRepository.loadFolders();
 
     final List<DirectoryEntry> directoryEntries = <DirectoryEntry>[];
     for (final String path in savedFolders) {
@@ -62,11 +63,12 @@ class _FolderListScreenState extends State<FolderListScreen> {
       return;
     }
 
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _directoryEntries.add(directoryEntry);
-      prefs.setStringList('folders', _directoryEntries.map((DirectoryEntry entry) => entry.path).toList());
     });
+    await _foldersRepository.saveFolders(
+      _directoryEntries.map((DirectoryEntry entry) => entry.path).toList(),
+    );
   }
 
   void _openFolder(DirectoryEntry directoryEntry) {
@@ -75,7 +77,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
       MaterialPageRoute<dynamic>(
         builder:
             (BuildContext context) =>
-            ImageGridScreen(directoryEntry: directoryEntry, cacheDir: _cacheDir),
+                ImageGridScreen(directoryEntry: directoryEntry, cacheDir: _cacheDir),
       ),
     );
   }
@@ -103,11 +105,12 @@ class _FolderListScreenState extends State<FolderListScreen> {
             trailing: IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () async {
-                final SharedPreferences prefs = await SharedPreferences.getInstance();
                 setState(() {
                   _directoryEntries.removeAt(index);
-                  prefs.setStringList('folders', _directoryEntries.map((DirectoryEntry entry) => entry.path).toList());
                 });
+                await _foldersRepository.saveFolders(
+                  _directoryEntries.map((DirectoryEntry entry) => entry.path).toList(),
+                );
               },
             ),
             onTap: () => _openFolder(_directoryEntries[index]),

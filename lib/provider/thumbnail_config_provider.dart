@@ -1,50 +1,63 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../constants/app_constants.dart';
+import '../infrastructure/setting.dart';
 
 class ThumbnailConfig {
-  const ThumbnailConfig({required this.maxCount, required this.maxBytes});
-  final int maxCount;
-  final int maxBytes;
+  const ThumbnailConfig({required this.stalePeriodDays, required this.maxDiskThumbnailCount});
 
-  ThumbnailConfig copyWith({int? maxCount, int? maxBytes}) => ThumbnailConfig(
-    maxCount: maxCount ?? this.maxCount,
-    maxBytes: maxBytes ?? this.maxBytes,
+  final int stalePeriodDays;
+  final int maxDiskThumbnailCount;
+
+  ThumbnailConfig copyWith({int? stalePeriodDays, int? maxDiskThumbnailCount}) => ThumbnailConfig(
+    stalePeriodDays: stalePeriodDays ?? this.stalePeriodDays,
+    maxDiskThumbnailCount: maxDiskThumbnailCount ?? this.maxDiskThumbnailCount,
   );
 }
-
-final StateNotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig> thumbnailConfigProvider =
-    StateNotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig>(
-      (StateNotifierProviderRef<ThumbnailConfigNotifier, ThumbnailConfig> ref) => ThumbnailConfigNotifier(),
-    );
 
 class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
   ThumbnailConfigNotifier()
     : super(
-        const ThumbnailConfig(maxCount: 5000, maxBytes: 200 * 1024 * 1024),
+        const ThumbnailConfig(
+          stalePeriodDays: SettingDefaults.stalePeriodDays,
+          maxDiskThumbnailCount: SettingDefaults.maxDiskThumbnailCount,
+        ),
       ) {
     _load();
   }
 
   Future<void> _load() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final int count = prefs.getInt('maxDiskThumbnailCount') ?? 5000;
-    final int bytes = prefs.getInt('maxDiskThumbnailBytes') ?? 200 * 1024 * 1024;
-    state = ThumbnailConfig(maxCount: count, maxBytes: bytes);
+    final int stalePeriodDays = await settingsStorage.getInt(
+      Settings.stalePeriodDays,
+      SettingDefaults.stalePeriodDays,
+    );
+    final int maxDiskThumbnailCount = await settingsStorage.getInt(
+      Settings.maxDiskThumbnailCount,
+      SettingDefaults.maxDiskThumbnailCount,
+    );
+    state = ThumbnailConfig(
+      stalePeriodDays: stalePeriodDays,
+      maxDiskThumbnailCount: maxDiskThumbnailCount,
+    );
   }
 
-  Future<void> setMaxCount(int count) async {
-    state = state.copyWith(maxCount: count);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('maxDiskThumbnailCount', count);
+  Future<void> setStalePeriodDays(int stalePeriodDays) async {
+    state = state.copyWith(stalePeriodDays: stalePeriodDays);
+    await settingsStorage.setInt(Settings.stalePeriodDays, stalePeriodDays);
   }
 
-  Future<void> setMaxBytes(int bytes) async {
-    state = state.copyWith(maxBytes: bytes);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('maxDiskThumbnailBytes', bytes);
+  Future<void> setMaxDiskThumbnailCount(int maxDiskThumbnailCount) async {
+    state = state.copyWith(maxDiskThumbnailCount: maxDiskThumbnailCount);
+    await settingsStorage.setInt(Settings.maxDiskThumbnailCount, maxDiskThumbnailCount);
   }
 
   Future<void> loadFromStorage() async {
     await _load();
   }
 }
+
+final StateNotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig> thumbnailConfigProvider =
+    StateNotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig>(
+      (StateNotifierProviderRef<ThumbnailConfigNotifier, ThumbnailConfig> ref) =>
+          ThumbnailConfigNotifier(),
+    );
