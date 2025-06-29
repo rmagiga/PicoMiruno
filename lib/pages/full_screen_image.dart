@@ -21,11 +21,27 @@ class _FullScreenImageState extends State<FullScreenImage> {
   late int _currentIndex;
   final DefaultCacheManager cacheManager = DefaultCacheManager();
 
+  // 画像ごとのFutureをキャッシュ
+  final Map<int, Future<Uint8List>> _imageFutures = {};
+  // 直前の画像データを保持
+  Uint8List? _lastImageBytes;
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    // 初期表示時に前後画像もプリフェッチ
+    _prefetchAround(_currentIndex);
+  }
+
+  void _prefetchAround(int index) {
+    // 現在、前、次の画像をプリフェッチ
+    for (final int i in [index - 1, index, index + 1]) {
+      if (i >= 0 && i < widget.fileEntries.length) {
+        _imageFutures[i] ??= _getImageBytesWithCache(widget.fileEntries[i]);
+      }
+    }
   }
 
   @override
@@ -50,16 +66,42 @@ class _FullScreenImageState extends State<FullScreenImage> {
   Widget getImageSync(FileEntry fileEntry, int index) {
     final String imagePath = fileEntry.path;
 
+    // 画像ごとにFutureをキャッシュ
+    _imageFutures[index] ??= _getImageBytesWithCache(fileEntry);
+
     return FutureBuilder<Uint8List>(
-      future: _getImageBytesWithCache(fileEntry),
+      future: _imageFutures[index],
+      initialData: _lastImageBytes, // 前回の画像をinitialDataに
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
+        Widget child;
         if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-          return _buildPhotoView(snapshot.data!, imagePath, index);
+          // 新しい画像データを保持
+          _lastImageBytes = snapshot.data;
+          child = _buildPhotoView(snapshot.data!, imagePath, index);
         } else if (snapshot.hasError) {
-          return const Icon(Icons.error, color: Colors.red);
+          child = const Icon(Icons.error, color: Colors.red);
+        } else if (snapshot.hasData) {
+          // 読み込み中は前回画像を表示
+          child = _buildPhotoView(snapshot.data!, imagePath, index, isPlaceholder: true);
+        } else {
+          child = const Center(child: CircularProgressIndicator());
         }
-        // Show a loading indicator while waiting for the image
-        return const Center(child: CircularProgressIndicator());
+        // AnimatedSwitcherで画像切り替えをなめらかに
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeIn,
+          switchOutCurve: Curves.easeOut,
+          layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+            return Stack(
+              alignment: Alignment.center,
+              children: <Widget>[...previousChildren, if (currentChild != null) currentChild],
+            );
+          },
+          child:
+              child is PhotoView
+                  ? KeyedSubtree(key: ValueKey<String>(imagePath), child: child)
+                  : child,
+        );
       },
     );
   }
@@ -156,6 +198,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         onPageChanged: (int index) {
           setState(() {
             _currentIndex = index;
+            _prefetchAround(index); // スワイプ時に前後画像もプリフェッチ
           });
         },
         itemBuilder: (BuildContext context, int index) {

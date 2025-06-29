@@ -45,42 +45,46 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'PicoMiruno',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
       darkTheme: ThemeData.dark(),
       themeMode: themeMode,
       home: const FolderListScreen(),
-      onGenerateRoute: route
+      onGenerateRoute: route,
     );
   }
 
   Route<dynamic>? route(RouteSettings settings) {
     switch (settings.name) {
       case Routes.settings:
-        return MaterialPageRoute<void>(
-          builder: (BuildContext context) => const SettingsScreen(),
-        );
+        return MaterialPageRoute<void>(builder: (BuildContext context) => const SettingsScreen());
       case Routes.folderList:
-        return MaterialPageRoute<void>(
-          builder: (BuildContext context) => const FolderListScreen(),
-        );
+        return MaterialPageRoute<void>(builder: (BuildContext context) => const FolderListScreen());
       case Routes.imageGrid:
-        final DirectoryEntry directoryEntry = getArgument<DirectoryEntry>(settings.arguments, RouteArguments.directoryEntry);
-        final Directory cacheDir = getArgument<Directory>(settings.arguments, RouteArguments.cacheDir);
+        final DirectoryEntry directoryEntry = getArgument<DirectoryEntry>(
+          settings.arguments,
+          RouteArguments.directoryEntry,
+        );
+        final Directory cacheDir = getArgument<Directory>(
+          settings.arguments,
+          RouteArguments.cacheDir,
+        );
         return MaterialPageRoute<void>(
-          builder: (BuildContext context) =>
-              ImageGridScreen(directoryEntry: directoryEntry, cacheDir: cacheDir),
+          builder:
+              (BuildContext context) =>
+                  ImageGridScreen(directoryEntry: directoryEntry, cacheDir: cacheDir),
         );
       case Routes.fullScreenImage:
-        final List<FileEntry> fileEntries = getArgument<List<FileEntry>>(settings.arguments, RouteArguments.fileEntries);
+        final List<FileEntry> fileEntries = getArgument<List<FileEntry>>(
+          settings.arguments,
+          RouteArguments.fileEntries,
+        );
         final int initialIndex = getArgument<int>(settings.arguments, RouteArguments.initialIndex);
         return MaterialPageRoute<void>(
-          builder: (BuildContext context) => FullScreenImage(fileEntries: fileEntries, initialIndex: initialIndex),
+          builder:
+              (BuildContext context) =>
+                  FullScreenImage(fileEntries: fileEntries, initialIndex: initialIndex),
         );
     }
-    return MaterialPageRoute<void>(
-      builder: (BuildContext context) => const FolderListScreen(),
-    );
+    return MaterialPageRoute<void>(builder: (BuildContext context) => const FolderListScreen());
   }
 }
