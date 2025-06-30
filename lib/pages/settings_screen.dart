@@ -4,19 +4,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../provider/theme_mode_provider.dart';
 import '../provider/thumbnail_config_provider.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  late TextEditingController countController;
+  late TextEditingController bytesController;
+
+  @override
+  void initState() {
+    super.initState();
+    final ThumbnailConfig thumbnailConfig = ref.read(thumbnailConfigProvider);
+    countController = TextEditingController(text: thumbnailConfig.stalePeriodDays.toString());
+    bytesController = TextEditingController(text: thumbnailConfig.maxDiskThumbnailCount.toString());
+  }
+
+  @override
+  void dispose() {
+    countController.dispose();
+    bytesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
     final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
-    final TextEditingController countController = TextEditingController(
-      text: thumbnailConfig.stalePeriodDays.toString(),
-    );
-    final TextEditingController bytesController = TextEditingController(
-      text: thumbnailConfig.maxDiskThumbnailCount.toString(),
-    );
+    // 値が変更された場合、コントローラのテキストも更新
+    if (countController.text != thumbnailConfig.stalePeriodDays.toString()) {
+      countController.text = thumbnailConfig.stalePeriodDays.toString();
+    }
+    if (bytesController.text != thumbnailConfig.maxDiskThumbnailCount.toString()) {
+      bytesController.text = thumbnailConfig.maxDiskThumbnailCount.toString();
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),
       body: Padding(
