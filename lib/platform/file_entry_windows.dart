@@ -100,4 +100,14 @@ class IOFileDirectoryEntry extends DirectoryEntry {
     final String extension = p.extension(file.path).toLowerCase();
     return imageExtensions.contains(extension);
   }
+
+  @override
+  Stream<FileEntry> listFilesStream() {
+    return directory
+        .list(followLinks: false)
+        .where((FileSystemEntity file) => file is File)
+        .map((FileSystemEntity file) => file as File)
+        .where((File file) => hasImageFile(file))
+        .map((File file) => ImageFileEntry.fromFile(file));
+  }
 }

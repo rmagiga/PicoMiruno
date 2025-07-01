@@ -74,15 +74,9 @@ class MyApp extends ConsumerWidget {
                   ImageGridScreen(directoryEntry: directoryEntry, cacheDir: cacheDir),
         );
       case Routes.fullScreenImage:
-        final List<FileEntry> fileEntries = getArgument<List<FileEntry>>(
-          settings.arguments,
-          RouteArguments.fileEntries,
-        );
         final int initialIndex = getArgument<int>(settings.arguments, RouteArguments.initialIndex);
         return MaterialPageRoute<void>(
-          builder:
-              (BuildContext context) =>
-                  FullScreenImage(fileEntries: fileEntries, initialIndex: initialIndex),
+          builder: (BuildContext context) => FullScreenImage(initialIndex: initialIndex),
         );
     }
     return MaterialPageRoute<void>(builder: (BuildContext context) => const FolderListScreen());

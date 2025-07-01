@@ -60,6 +60,9 @@ abstract class DirectoryEntry {
   String get viewPath;
 
   Future<List<FileEntry>> listFiles();
+
+  // Streamでファイル一覧を返す（デフォルトは未実装）
+  Stream<FileEntry> listFilesStream();
 }
 
 abstract class DirectoryEntryFactory {

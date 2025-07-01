@@ -98,4 +98,11 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
         }).toList();
     return fileEntries;
   }
+
+  @override
+  Stream<FileEntry> listFilesStream() {
+    return documentFile
+        .listDocumentsStream(extensions: imageExtensions)
+        .map((DocumentFile docFile) => ImageDocumentFileEntry(documentFile));
+  }
 }

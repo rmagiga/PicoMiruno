@@ -3,27 +3,25 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../provider/file_entry_list_provider.dart';
 import '../platform/file_entry.dart';
 
-class FullScreenImage extends StatefulWidget {
-  const FullScreenImage({super.key, required this.fileEntries, required this.initialIndex});
+class FullScreenImage extends ConsumerStatefulWidget {
+  const FullScreenImage({super.key, required this.initialIndex});
 
-  final List<FileEntry> fileEntries;
   final int initialIndex;
 
   @override
-  State<FullScreenImage> createState() => _FullScreenImageState();
+  ConsumerState<FullScreenImage> createState() => _FullScreenImageState();
 }
 
-class _FullScreenImageState extends State<FullScreenImage> {
+class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   late PageController _pageController;
   late int _currentIndex;
   final DefaultCacheManager cacheManager = DefaultCacheManager();
-
-  // 画像ごとのFutureをキャッシュ
   final Map<int, Future<Uint8List>> _imageFutures = {};
-  // 直前の画像データを保持
   Uint8List? _lastImageBytes;
 
   @override
@@ -36,10 +34,10 @@ class _FullScreenImageState extends State<FullScreenImage> {
   }
 
   void _prefetchAround(int index) {
-    // 現在、前、次の画像をプリフェッチ
+    final files = ref.read(fileEntryListProvider);
     for (final int i in [index - 1, index, index + 1]) {
-      if (i >= 0 && i < widget.fileEntries.length) {
-        _imageFutures[i] ??= _getImageBytesWithCache(widget.fileEntries[i]);
+      if (i >= 0 && i < files.length) {
+        _imageFutures[i] ??= _getImageBytesWithCache(files[i]);
       }
     }
   }
@@ -157,7 +155,8 @@ class _FullScreenImageState extends State<FullScreenImage> {
             behavior: HitTestBehavior.translucent,
             onHorizontalDragEnd: (DragEndDetails details) {
               if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-                if (index < widget.fileEntries.length - 1) {
+                final files = ref.read(fileEntryListProvider);
+                if (index < files.length - 1) {
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.ease,
@@ -166,7 +165,8 @@ class _FullScreenImageState extends State<FullScreenImage> {
               }
             },
             onTapUp: (_) {
-              if (index < widget.fileEntries.length - 1) {
+              final files = ref.read(fileEntryListProvider);
+              if (index < files.length - 1) {
                 _pageController.nextPage(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.ease,
@@ -189,11 +189,12 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
   @override
   Widget build(BuildContext context) {
+    final files = ref.watch(fileEntryListProvider);
     return Scaffold(
-      appBar: AppBar(title: Text('${_currentIndex + 1} / ${widget.fileEntries.length}')),
+      appBar: AppBar(title: Text('${_currentIndex + 1} / ${files.length}')),
       body: PageView.builder(
         controller: _pageController,
-        itemCount: widget.fileEntries.length,
+        itemCount: files.length,
         physics: const ClampingScrollPhysics(),
         onPageChanged: (int index) {
           setState(() {
@@ -202,7 +203,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           });
         },
         itemBuilder: (BuildContext context, int index) {
-          return Center(child: getImageSync(widget.fileEntries[index], index));
+          return Center(child: getImageSync(files[index], index));
         },
       ),
     );
