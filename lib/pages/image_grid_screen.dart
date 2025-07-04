@@ -75,6 +75,10 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   Widget build(BuildContext context) {
     final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
     final List<FileEntry> files = ref.watch(fileEntryListProvider);
+    // 更新日時の降順でソート
+    final List<FileEntry> sortedFiles = List<FileEntry>.from(files)..sort(
+      (FileEntry a, FileEntry b) => b.getLastModifiedTime().compareTo(a.getLastModifiedTime()),
+    );
     final IThumbnailService thumbnailService = ThumbnailService(
       cacheDir: widget.cacheDir,
       thumbSize: ThumbnailConstants.thumbSize,
@@ -82,13 +86,13 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
       maxNrOfCacheObjects: thumbnailConfig.maxDiskThumbnailCount,
     );
 
-    if (_loading && files.isEmpty) {
+    if (_loading && sortedFiles.isEmpty) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_hasError) {
       return const Scaffold(body: Center(child: Text('画像の取得に失敗しました')));
     }
-    if (files.isEmpty) {
+    if (sortedFiles.isEmpty) {
       return const Scaffold(body: Center(child: Text('画像がありません')));
     }
     return Scaffold(
@@ -103,9 +107,9 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
               mainAxisSpacing: 4,
               crossAxisSpacing: 4,
             ),
-            itemCount: files.length,
+            itemCount: sortedFiles.length,
             itemBuilder: (BuildContext context, int index) {
-              final FileEntry entry = files[index];
+              final FileEntry entry = sortedFiles[index];
               return GestureDetector(
                 onTap: () {
                   Navigator.pushNamed(

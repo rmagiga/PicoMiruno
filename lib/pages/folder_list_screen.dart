@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../constants/app_constants.dart';
 import '../infrastructure/folders.dart';
 import '../platform/file_entry.dart';
+import '../utils/app_logger.dart';
 import 'image_grid_screen.dart';
 
 class FolderListScreen extends StatefulWidget {
@@ -39,7 +40,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
         directoryEntries.add(directoryEntry);
       } catch (e) {
         // エラーが発生した場合はログに出力し、フォルダをスキップ
-        log('Error loading directory entry for $path: $e');
+        logger.d('Error loading directory entry for $path: $e');
       }
     }
     setState(() {

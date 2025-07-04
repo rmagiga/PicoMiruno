@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,6 +12,9 @@ import 'pages/settings_screen.dart';
 import 'platform/file_entry.dart';
 import 'provider/theme_mode_provider.dart';
 import 'provider/thumbnail_config_provider.dart';
+import 'utils/app_logger.dart';
+
+// ignore: unreachable_from_main
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +24,7 @@ void main() async {
     container.read(themeModeProvider.notifier).loadFromStorage(),
     container.read(thumbnailConfigProvider.notifier).loadFromStorage(),
   ]);
+  setupLogger();
   runApp(UncontrolledProviderScope(container: container, child: const MyApp()));
 }
 
@@ -32,7 +35,7 @@ T getArgument<T>(Object? arguments, String key) {
       return value;
     }
   }
-  log('Argument for key "$key" is not of type $T or not found.', name: 'getArgument');
+  logger.d('Argument for key "$key" is not of type $T or not found.');
   throw ArgumentError('Invalid argument type or key not found: $key');
 }
 
