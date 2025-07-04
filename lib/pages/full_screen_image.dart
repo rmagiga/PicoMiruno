@@ -1,10 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 
+import '../infrastructure/cache_manager_image_provider_service.dart';
+import '../infrastructure/image_provider_service.dart';
 import '../platform/file_entry.dart';
 import '../provider/file_entry_list_provider.dart';
 
@@ -20,7 +21,7 @@ class FullScreenImage extends ConsumerStatefulWidget {
 class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   late PageController _pageController;
   late int _currentIndex;
-  final DefaultCacheManager cacheManager = DefaultCacheManager();
+  final ImageProviderService imageProviderService = CacheManagerImageProviderService();
   final Map<int, Future<Uint8List>> _imageFutures = <int, Future<Uint8List>>{};
   Uint8List? _lastImageBytes;
 
@@ -37,7 +38,7 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
     final List<FileEntry> files = ref.read(fileEntryListProvider);
     for (final int i in <int>[index - 1, index, index + 1]) {
       if (i >= 0 && i < files.length) {
-        _imageFutures[i] ??= _getImageBytesWithCache(files[i]);
+        _imageFutures[i] ??= imageProviderService.getImageBytes(files[i]);
       }
     }
   }
@@ -48,28 +49,13 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
     super.dispose();
   }
 
-  Future<Uint8List> _getImageBytesWithCache(FileEntry fileEntry) async {
-    // メモリキャッシュ優先
-    final String imagePath = fileEntry.path;
-    final FileInfo? cachedFile = await cacheManager.getFileFromCache(imagePath);
-    if (cachedFile != null && await cachedFile.file.exists()) {
-      return cachedFile.file.readAsBytes();
-    }
-    final Uint8List bytes = await fileEntry.readAsBytes();
-    await cacheManager.putFile(imagePath, bytes);
-    return bytes;
-  }
-
   // flutter_cache_managerの利用をやめ、ImageServiceのgetImageByteを使う
   Widget getImageSync(FileEntry fileEntry, int index) {
     final String imagePath = fileEntry.path;
-
-    // 画像ごとにFutureをキャッシュ
-    _imageFutures[index] ??= _getImageBytesWithCache(fileEntry);
-
+    _imageFutures[index] ??= imageProviderService.getImageBytes(fileEntry);
     return FutureBuilder<Uint8List>(
       future: _imageFutures[index],
-      initialData: _lastImageBytes, // 前回の画像をinitialDataに
+      initialData: _lastImageBytes,
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
         Widget child;
         if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
