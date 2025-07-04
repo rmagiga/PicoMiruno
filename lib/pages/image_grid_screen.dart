@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_constants.dart';
@@ -10,6 +10,7 @@ import '../platform/file_entry.dart';
 import '../provider/file_entry_list_provider.dart';
 import '../provider/thumbnail_config_provider.dart';
 import '../utils/thumbnail_service.dart';
+import '../widgets/thumbnail_image.dart';
 
 class ImageGridScreen extends ConsumerStatefulWidget {
   const ImageGridScreen({super.key, required this.directoryEntry, required this.cacheDir});
@@ -79,11 +80,18 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     final List<FileEntry> sortedFiles = List<FileEntry>.from(files)..sort(
       (FileEntry a, FileEntry b) => b.getLastModifiedTime().compareTo(a.getLastModifiedTime()),
     );
+    final CacheManager cacheManager = CacheManager(
+      Config(
+        'thumbCache',
+        stalePeriod: Duration(days: thumbnailConfig.stalePeriodDays),
+        maxNrOfCacheObjects: thumbnailConfig.maxDiskThumbnailCount,
+      ),
+    );
+
     final IThumbnailService thumbnailService = ThumbnailService(
       cacheDir: widget.cacheDir,
       thumbSize: ThumbnailConstants.thumbSize,
-      stalePeriodDays: thumbnailConfig.stalePeriodDays,
-      maxNrOfCacheObjects: thumbnailConfig.maxDiskThumbnailCount,
+      cacheManager: cacheManager,
     );
 
     if (_loading && sortedFiles.isEmpty) {
@@ -118,30 +126,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
                     arguments: <String, Object>{'initialIndex': index},
                   );
                 },
-                child: FutureBuilder<Uint8List>(
-                  future: thumbnailService.getThumbnail(entry),
-                  builder: (BuildContext context, AsyncSnapshot<Uint8List> snap) {
-                    if (snap.connectionState != ConnectionState.done) {
-                      return Container(
-                        color: Colors.grey[300],
-                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      );
-                    }
-                    if (snap.hasError || !snap.hasData) {
-                      return const Icon(Icons.broken_image, color: Colors.red);
-                    }
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(
-                        snap.data!,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        cacheWidth: ThumbnailConstants.thumbSize,
-                        cacheHeight: ThumbnailConstants.thumbSize,
-                      ),
-                    );
-                  },
-                ),
+                child: ThumbnailImage(entry: entry, thumbnailService: thumbnailService),
               );
             },
           );
