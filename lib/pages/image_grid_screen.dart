@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,7 +43,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
 
   void _startListening() {
     _subscription = _filesStream?.listen(
-      (entry) {
+      (FileEntry entry) {
         ref.read(fileEntryListProvider.notifier).add(entry);
         if (_loading) {
           setState(() {
@@ -75,7 +75,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   Widget build(BuildContext context) {
     final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
     final List<FileEntry> files = ref.watch(fileEntryListProvider);
-    final IThumbnailService _thumbnailService = ThumbnailService(
+    final IThumbnailService thumbnailService = ThumbnailService(
       cacheDir: widget.cacheDir,
       thumbSize: ThumbnailConstants.thumbSize,
       stalePeriodDays: thumbnailConfig.stalePeriodDays,
@@ -115,7 +115,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
                   );
                 },
                 child: FutureBuilder<Uint8List>(
-                  future: _thumbnailService.getThumbnail(entry),
+                  future: thumbnailService.getThumbnail(entry),
                   builder: (BuildContext context, AsyncSnapshot<Uint8List> snap) {
                     if (snap.connectionState != ConnectionState.done) {
                       return Container(
