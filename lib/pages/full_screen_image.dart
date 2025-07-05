@@ -50,7 +50,7 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   }
 
   // flutter_cache_managerの利用をやめ、ImageServiceのgetImageByteを使う
-  Widget getImageSync(FileEntry fileEntry, int index) {
+  Widget getImageSync(FileEntry fileEntry, int index, int filesLength) {
     final String imagePath = fileEntry.path;
     _imageFutures[index] ??= imageProviderService.getImageBytes(fileEntry);
     return FutureBuilder<Uint8List>(
@@ -61,12 +61,18 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
         if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
           // 新しい画像データを保持
           _lastImageBytes = snapshot.data;
-          child = _buildPhotoView(snapshot.data!, imagePath, index);
+          child = _buildPhotoView(snapshot.data!, imagePath, index, filesLength);
         } else if (snapshot.hasError) {
           child = const Icon(Icons.error, color: Colors.red);
         } else if (snapshot.hasData) {
           // 読み込み中は前回画像を表示
-          child = _buildPhotoView(snapshot.data!, imagePath, index, isPlaceholder: true);
+          child = _buildPhotoView(
+            snapshot.data!,
+            imagePath,
+            index,
+            filesLength,
+            isPlaceholder: true,
+          );
         } else {
           child = const Center(child: CircularProgressIndicator());
         }
@@ -93,7 +99,8 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   Widget _buildPhotoView(
     Uint8List bytes,
     String imagePath,
-    int index, {
+    int index,
+    int filesLength, {
     bool isPlaceholder = false,
   }) {
     return Stack(
@@ -109,58 +116,16 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
           enableRotation: true,
         ),
         // 左端スワイプ
-        Align(
+        _buildEdgeGesture(
           alignment: Alignment.centerLeft,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onHorizontalDragEnd: (DragEndDetails details) {
-              if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
-                if (index > 0) {
-                  _pageController.previousPage(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.ease,
-                  );
-                }
-              }
-            },
-            onTapUp: (_) {
-              if (index > 0) {
-                _pageController.previousPage(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.ease,
-                );
-              }
-            },
-            child: const SizedBox(width: 40, height: double.infinity),
-          ),
+          onSwipe: () => _onPrevious(index),
+          onTap: () => _onPrevious(index),
         ),
         // 右端スワイプ
-        Align(
+        _buildEdgeGesture(
           alignment: Alignment.centerRight,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onHorizontalDragEnd: (DragEndDetails details) {
-              if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-                final List<FileEntry> files = ref.read(fileEntryListProvider);
-                if (index < files.length - 1) {
-                  _pageController.nextPage(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.ease,
-                  );
-                }
-              }
-            },
-            onTapUp: (_) {
-              final List<FileEntry> files = ref.read(fileEntryListProvider);
-              if (index < files.length - 1) {
-                _pageController.nextPage(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.ease,
-                );
-              }
-            },
-            child: const SizedBox(width: 40, height: double.infinity),
-          ),
+          onSwipe: () => _onNext(index, filesLength),
+          onTap: () => _onNext(index, filesLength),
         ),
         if (isPlaceholder)
           const Positioned.fill(
@@ -171,6 +136,44 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
           ),
       ],
     );
+  }
+
+  Widget _buildEdgeGesture({
+    required Alignment alignment,
+    required VoidCallback onSwipe,
+    required VoidCallback onTap,
+  }) {
+    return Align(
+      alignment: alignment,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (DragEndDetails details) {
+          if (alignment == Alignment.centerLeft &&
+              details.primaryVelocity != null &&
+              details.primaryVelocity! > 0) {
+            onSwipe();
+          } else if (alignment == Alignment.centerRight &&
+              details.primaryVelocity != null &&
+              details.primaryVelocity! < 0) {
+            onSwipe();
+          }
+        },
+        onTapUp: (_) => onTap(),
+        child: const SizedBox(width: 40, height: double.infinity),
+      ),
+    );
+  }
+
+  void _onPrevious(int index) {
+    if (index > 0) {
+      _pageController.previousPage(duration: const Duration(milliseconds: 200), curve: Curves.ease);
+    }
+  }
+
+  void _onNext(int index, int filesLength) {
+    if (index < filesLength - 1) {
+      _pageController.nextPage(duration: const Duration(milliseconds: 200), curve: Curves.ease);
+    }
   }
 
   @override
@@ -189,7 +192,7 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
           });
         },
         itemBuilder: (BuildContext context, int index) {
-          return Center(child: getImageSync(files[index], index));
+          return Center(child: getImageSync(files[index], index, files.length));
         },
       ),
     );

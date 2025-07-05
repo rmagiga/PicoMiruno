@@ -23,47 +23,18 @@ class ImageGridScreen extends ConsumerStatefulWidget {
 }
 
 class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
+  // --- 定数・フィールド ---
   final double _itemWidth = 120;
-  final DirectoryEntryFactory factory = DirectoryEntryFactory();
   Stream<FileEntry>? _filesStream;
   StreamSubscription<FileEntry>? _subscription;
   bool _loading = true;
   bool _hasError = false;
 
+  // --- ライフサイクル ---
   @override
   void initState() {
     super.initState();
-    _filesStream = widget.directoryEntry.listFilesStream();
-    ref.read(thumbnailConfigProvider.notifier).loadFromStorage();
-    // Providerのリストを初期化
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(fileEntryListProvider.notifier).clear();
-      _startListening();
-    });
-  }
-
-  void _startListening() {
-    _subscription = _filesStream?.listen(
-      (FileEntry entry) {
-        ref.read(fileEntryListProvider.notifier).add(entry);
-        if (_loading) {
-          setState(() {
-            _loading = false;
-          });
-        }
-      },
-      onError: (_) {
-        setState(() {
-          _hasError = true;
-          _loading = false;
-        });
-      },
-      onDone: () {
-        setState(() {
-          _loading = false;
-        });
-      },
-    );
+    _initializeStreamsAndProviders();
   }
 
   @override
@@ -72,37 +43,64 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
     super.dispose();
   }
 
+  // --- 初期化処理 ---
+  void _initializeStreamsAndProviders() {
+    _filesStream = widget.directoryEntry.listFilesStream();
+    ref.read(thumbnailConfigProvider.notifier).loadFromStorage();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(fileEntryListProvider.notifier).clear();
+      _startListeningFileStream();
+    });
+  }
+
+  void _startListeningFileStream() {
+    _subscription = _filesStream?.listen(
+      (FileEntry entry) {
+        ref.read(fileEntryListProvider.notifier).add(entry);
+        if (_loading) {
+          setState(() => _loading = false);
+        }
+      },
+      onError:
+          (_) => setState(() {
+            _hasError = true;
+            _loading = false;
+          }),
+      onDone: () => setState(() => _loading = false),
+    );
+  }
+
+  // --- Widget構築 ---
   @override
   Widget build(BuildContext context) {
     final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
     final List<FileEntry> files = ref.watch(fileEntryListProvider);
-    // 更新日時の降順でソート
-    final List<FileEntry> sortedFiles = List<FileEntry>.from(files)..sort(
-      (FileEntry a, FileEntry b) => b.getLastModifiedTime().compareTo(a.getLastModifiedTime()),
-    );
-    final CacheManager cacheManager = CacheManager(
-      Config(
-        'thumbCache',
-        stalePeriod: Duration(days: thumbnailConfig.stalePeriodDays),
-        maxNrOfCacheObjects: thumbnailConfig.maxDiskThumbnailCount,
-      ),
-    );
-
-    final IThumbnailService thumbnailService = ThumbnailService(
-      cacheDir: widget.cacheDir,
-      thumbSize: ThumbnailConstants.thumbSize,
-      cacheManager: cacheManager,
-    );
+    final List<FileEntry> sortedFiles = _getSortedFiles(files);
+    final CacheManager cacheManager = _createCacheManager(thumbnailConfig);
+    final IThumbnailService thumbnailService = _createThumbnailService(cacheManager);
 
     if (_loading && sortedFiles.isEmpty) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return _buildLoading();
     }
     if (_hasError) {
-      return const Scaffold(body: Center(child: Text('画像の取得に失敗しました')));
+      return _buildError();
     }
     if (sortedFiles.isEmpty) {
-      return const Scaffold(body: Center(child: Text('画像がありません')));
+      return _buildNoImages();
     }
+    return _buildGrid(context, sortedFiles, thumbnailService);
+  }
+
+  // --- Widget分割 ---
+  Widget _buildLoading() => const Scaffold(body: Center(child: CircularProgressIndicator()));
+  Widget _buildError() => const Scaffold(body: Center(child: Text('画像の取得に失敗しました')));
+  Widget _buildNoImages() => const Scaffold(body: Center(child: Text('画像がありません')));
+
+  Widget _buildGrid(
+    BuildContext context,
+    List<FileEntry> files,
+    IThumbnailService thumbnailService,
+  ) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.directoryEntry.name)),
       body: LayoutBuilder(
@@ -115,23 +113,52 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
               mainAxisSpacing: 4,
               crossAxisSpacing: 4,
             ),
-            itemCount: sortedFiles.length,
+            itemCount: files.length,
             itemBuilder: (BuildContext context, int index) {
-              final FileEntry entry = sortedFiles[index];
+              final FileEntry entry = files[index];
               return GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    Routes.fullScreenImage,
-                    arguments: <String, Object>{'initialIndex': index},
-                  );
-                },
+                onTap: () => _onImageTap(context, index),
                 child: ThumbnailImage(entry: entry, thumbnailService: thumbnailService),
               );
             },
           );
         },
       ),
+    );
+  }
+
+  // --- ユーティリティ ---
+  List<FileEntry> _getSortedFiles(List<FileEntry> files) {
+    final List<FileEntry> sorted = List<FileEntry>.from(files);
+    sorted.sort(
+      (FileEntry a, FileEntry b) => b.getLastModifiedTime().compareTo(a.getLastModifiedTime()),
+    );
+    return sorted;
+  }
+
+  CacheManager _createCacheManager(ThumbnailConfig config) {
+    return CacheManager(
+      Config(
+        'thumbCache',
+        stalePeriod: Duration(days: config.stalePeriodDays),
+        maxNrOfCacheObjects: config.maxDiskThumbnailCount,
+      ),
+    );
+  }
+
+  IThumbnailService _createThumbnailService(CacheManager cacheManager) {
+    return ThumbnailService(
+      cacheDir: widget.cacheDir,
+      thumbSize: ThumbnailConstants.thumbSize,
+      cacheManager: cacheManager,
+    );
+  }
+
+  void _onImageTap(BuildContext context, int index) {
+    Navigator.pushNamed(
+      context,
+      Routes.fullScreenImage,
+      arguments: <String, Object>{'initialIndex': index},
     );
   }
 }

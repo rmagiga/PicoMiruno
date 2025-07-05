@@ -17,71 +17,76 @@ class FolderListScreen extends StatefulWidget {
 }
 
 class _FolderListScreenState extends State<FolderListScreen> {
-  List<DirectoryEntry> _directoryEntries = <DirectoryEntry>[];
-  late Directory _cacheDir;
+  // --- Fields ---
   final DirectoryEntryFactory _factory = DirectoryEntryFactory();
   final FoldersRepository _foldersRepository = SharedPreferencesFoldersRepository();
+  List<DirectoryEntry> _directoryEntries = <DirectoryEntry>[];
+  late Directory _cacheDir;
 
+  // --- Lifecycle ---
   @override
   void initState() {
     super.initState();
     _loadFolders();
   }
 
+  // --- Folder Operations ---
   Future<void> _loadFolders() async {
     _cacheDir = await getTemporaryDirectory();
     final List<String> savedFolders = await _foldersRepository.loadFolders();
-
-    final List<DirectoryEntry> directoryEntries = <DirectoryEntry>[];
+    final List<DirectoryEntry> entries = <DirectoryEntry>[];
     for (final String path in savedFolders) {
       try {
-        final DirectoryEntry directoryEntry = await _factory.create(path);
-        directoryEntries.add(directoryEntry);
+        final DirectoryEntry entry = await _factory.create(path);
+        entries.add(entry);
       } catch (e) {
-        // エラーが発生した場合はログに出力し、フォルダをスキップ
         logger.d('Error loading directory entry for $path: $e');
       }
     }
-    setState(() {
-      _directoryEntries = directoryEntries;
-    });
+    setState(() => _directoryEntries = entries);
   }
 
   Future<void> _addFolder() async {
-    final DirectoryEntry? directoryEntry = await DirectoryEntryFactory().pickDirectory();
-
-    if (directoryEntry == null) {
-      if (!mounted) {
-        return;
-      }
-      // ユーザーがフォルダを選択しなかった場合の処理
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
-      }
+    final DirectoryEntry? entry = await _factory.pickDirectory();
+    if (!mounted) {
       return;
     }
+    if (entry == null) {
+      _showSnackBar('フォルダが選択されませんでした');
+      return;
+    }
+    setState(() => _directoryEntries.add(entry));
+    await _saveFolders();
+  }
 
-    setState(() {
-      _directoryEntries.add(directoryEntry);
-    });
+  Future<void> _removeFolder(int index) async {
+    setState(() => _directoryEntries.removeAt(index));
+    await _saveFolders();
+  }
+
+  Future<void> _saveFolders() async {
     await _foldersRepository.saveFolders(
-      _directoryEntries.map((DirectoryEntry entry) => entry.path).toList(),
+      _directoryEntries.map((DirectoryEntry e) => e.path).toList(),
     );
   }
 
-  void _openFolder(DirectoryEntry directoryEntry) {
+  void _openFolder(DirectoryEntry entry) {
     Navigator.push(
       context,
-      MaterialPageRoute<dynamic>(
-        builder:
-            (BuildContext context) =>
-                ImageGridScreen(directoryEntry: directoryEntry, cacheDir: _cacheDir),
+      MaterialPageRoute<void>(
+        builder: (_) => ImageGridScreen(directoryEntry: entry, cacheDir: _cacheDir),
       ),
     );
   }
 
+  void _showSnackBar(String message) {
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // --- UI ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,30 +95,21 @@ class _FolderListScreenState extends State<FolderListScreen> {
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              // 設定画面への遷移（後で画面を作成）
-              Navigator.pushNamed(context, Routes.settings);
-            },
+            onPressed: () => Navigator.pushNamed(context, Routes.settings),
           ),
         ],
       ),
       body: ListView.builder(
         itemCount: _directoryEntries.length,
         itemBuilder: (BuildContext context, int index) {
+          final DirectoryEntry entry = _directoryEntries[index];
           return ListTile(
-            title: Text(_directoryEntries[index].viewPath),
+            title: Text(entry.viewPath),
             trailing: IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: () async {
-                setState(() {
-                  _directoryEntries.removeAt(index);
-                });
-                await _foldersRepository.saveFolders(
-                  _directoryEntries.map((DirectoryEntry entry) => entry.path).toList(),
-                );
-              },
+              onPressed: () => _removeFolder(index),
             ),
-            onTap: () => _openFolder(_directoryEntries[index]),
+            onTap: () => _openFolder(entry),
           );
         },
       ),
