@@ -41,7 +41,7 @@ mixin ThumbnailMixin on FileEntry {
       final Uint8List bytes = await readAsBytes();
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) {
-        logger.e('Failed to decode image: $path');
+        logger.e('画像のデコードに失敗しました: $path');
         throw Exception('画像のデコードに失敗しました');
       }
       final img.Image thumbnail = img.copyResize(image, width: size, height: size);

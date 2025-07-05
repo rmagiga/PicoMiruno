@@ -40,7 +40,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
         final DirectoryEntry entry = await _factory.create(path);
         entries.add(entry);
       } catch (e) {
-        logger.d('Error loading directory entry for $path: $e');
+        logger.d('フォルダ $path の読み込み中にエラーが発生しました: $e');
       }
     }
     setState(() => _directoryEntries = entries);

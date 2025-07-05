@@ -11,8 +11,8 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
   Future<DirectoryEntry> create(String path) async {
     final DocumentFile? documentFile = await DocumentFile.fromUri(path);
     if (documentFile == null || documentFile.isFile || !documentFile.exists) {
-      logger.d('Document file does not exist or is not a directory: $path');
-      throw Exception('Document file does not exist: $path');
+      logger.d('ドキュメントファイルが存在しないかディレクトリではありません: $path');
+      throw Exception('ドキュメントファイルが存在しないかディレクトリではありません: $path');
     }
     return DocumentFileDirectoryEntry(documentFile);
   }
@@ -32,8 +32,8 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
 class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
   ImageDocumentFileEntry(this.documentFile) : path = documentFile.uri {
     if (!documentFile.isFile || !documentFile.exists) {
-      logger.d('Not a file or does not exist: $path');
-      throw Exception('Not a file: $path');
+      logger.d('ファイルではないか、存在しません: $path');
+      throw Exception('ファイルではないか、存在しません: $path');
     }
   }
 
@@ -48,8 +48,8 @@ class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
   Future<Uint8List> readAsBytes() async {
     final Uint8List? bytes = await documentFile.read();
     if (bytes == null || bytes.isEmpty) {
-      logger.d('Failed to read file: $path');
-      throw Exception('Failed to read file: $path');
+      logger.d('ファイルの読み込みに失敗しました: $path');
+      throw Exception('ファイルの読み込みに失敗しました: $path');
     }
     return bytes;
   }
@@ -79,8 +79,8 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
     try {
       documentFiles = await documentFile.listDocuments();
     } catch (e) {
-      logger.e('Failed to list files in directory: $path, error: $e');
-      throw Exception('Failed to list files in directory: $path, error: $e');
+      logger.e('ディレクトリ内のファイル一覧取得に失敗しました: $path, エラー: $e');
+      throw Exception('ディレクトリ内のファイル一覧取得に失敗しました: $path, エラー: $e');
     }
     if (documentFiles.isEmpty) {
       return <FileEntry>[];

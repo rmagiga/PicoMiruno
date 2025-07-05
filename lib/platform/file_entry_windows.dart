@@ -27,15 +27,15 @@ class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
 class ImageFileEntry extends FileEntry with ThumbnailMixin {
   ImageFileEntry(this.path) : file = File(path) {
     if (!file.existsSync()) {
-      logger.e('File does not exist: $path');
-      throw Exception('File does not exist: $path');
+      logger.e('ファイルが存在しません: $path');
+      throw Exception('ファイルが存在しません: $path');
     }
   }
 
   ImageFileEntry.fromFile(this.file) : path = file.path {
     if (!file.existsSync()) {
-      logger.e('File does not exist: ${file.path}');
-      throw Exception('File does not exist: ${file.path}');
+      logger.e('ファイルが存在しません: ${file.path}');
+      throw Exception('ファイルが存在しません: ${file.path}');
     }
   }
 
@@ -60,8 +60,8 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
 class IOFileDirectoryEntry extends DirectoryEntry {
   IOFileDirectoryEntry(this.path) : directory = Directory(path) {
     if (!directory.existsSync()) {
-      logger.e('Directory does not exist: $path');
-      throw Exception('Directory does not exist: $path');
+      logger.e('ディレクトリが存在しません: $path');
+      throw Exception('ディレクトリが存在しません: $path');
     }
   }
 

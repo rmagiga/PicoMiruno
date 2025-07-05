@@ -35,8 +35,8 @@ T getArgument<T>(Object? arguments, String key) {
       return value;
     }
   }
-  logger.d('Argument for key "$key" is not of type $T or not found.');
-  throw ArgumentError('Invalid argument type or key not found: $key');
+  logger.d('キー "$key" の引数が型 $T ではないか、見つかりません。');
+  throw ArgumentError('無効な引数の型、またはキーが見つかりません: $key');
 }
 
 class MyApp extends ConsumerWidget {

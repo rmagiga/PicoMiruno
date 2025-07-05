@@ -30,12 +30,12 @@ class ThumbnailService implements IThumbnailService {
       final String thumbPath = entry.getThumbnailPath(cacheDir);
       final FileInfo? cached = await cacheManager.getFileFromCache(thumbPath);
       if (cached != null && await cached.file.exists()) {
-        logger.d('Thumbnail loaded from cache: $thumbPath');
+        logger.d('サムネイルをキャッシュから読み込みました: $thumbPath');
         return cached.file.readAsBytes();
       }
       final Uint8List bytes = await entry.thumbnailReadAsBytes(cacheDir, size: thumbSize);
       await cacheManager.putFile(thumbPath, bytes);
-      logger.d('Thumbnail saved to cache: $thumbPath');
+      logger.d('サムネイルをキャッシュに保存しました: $thumbPath');
       return bytes;
     });
   }
