@@ -1,4 +1,5 @@
 // file_entry_android.dart
+import 'dart:async';
 import 'dart:developer';
 import 'dart:typed_data';
 
@@ -77,7 +78,7 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
   Future<List<FileEntry>> listFiles() async {
     late final List<DocumentFile> documentFiles;
     try {
-      documentFiles = await documentFile.listDocuments();
+      documentFiles = await documentFile.listDocuments(extensions: imageExtensions);
     } catch (e) {
       log('Failed to list files in directory: $path, error: $e');
       throw Exception('Failed to list files in directory: $path, error: $e');
@@ -97,5 +98,28 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
           return ImageDocumentFileEntry(docFile);
         }).toList();
     return fileEntries;
+  }
+
+  @override
+  Future<Stream<FileEntry>> listFilesAsStream() async {
+    final StreamController<FileEntry> controller = StreamController<FileEntry>();
+    documentFile
+        .listDocumentsStream(extensions: imageExtensions)
+        .listen(
+          (DocumentFile docFile) {
+            if (docFile.isFile && docFile.exists) {
+              controller.add(ImageDocumentFileEntry(docFile));
+            }
+          },
+          onError: (Object error) {
+            log('Error listing files in directory: $path, error: $error');
+            controller.addError(error);
+          },
+          onDone: () {
+            controller.close();
+          },
+        );
+
+    return controller.stream;
   }
 }

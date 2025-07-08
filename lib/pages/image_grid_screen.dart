@@ -42,7 +42,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   @override
   Widget build(BuildContext context) {
     final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
-    late final IThumbnailService _thumbnailService = ThumbnailService(
+    late final IThumbnailService thumbnailService = ThumbnailService(
       cacheDir: widget.cacheDir,
       thumbSize: ThumbnailConstants.thumbSize,
       stalePeriodDays: thumbnailConfig.stalePeriodDays,
@@ -83,7 +83,7 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
                       );
                     },
                     child: FutureBuilder<Uint8List>(
-                      future: _thumbnailService.getThumbnail(entry),
+                      future: thumbnailService.getThumbnail(entry),
                       builder: (BuildContext context, AsyncSnapshot<Uint8List> snap) {
                         if (snap.connectionState != ConnectionState.done) {
                           return Container(

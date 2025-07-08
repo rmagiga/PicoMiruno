@@ -60,6 +60,7 @@ abstract class DirectoryEntry {
   String get viewPath;
 
   Future<List<FileEntry>> listFiles();
+  Future<Stream<FileEntry>> listFilesAsStream();
 }
 
 abstract class DirectoryEntryFactory {

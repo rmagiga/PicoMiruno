@@ -1,4 +1,5 @@
 // file_entry_windows.dart
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
@@ -85,7 +86,7 @@ class IOFileDirectoryEntry extends DirectoryEntry {
         directory
             .listSync(followLinks: false)
             .whereType<File>()
-            .where((File file) => hasImageFile(file))
+            .where((File file) => _isImageFile(file))
             .map((File file) => ImageFileEntry.fromFile(file))
             .toList();
 
@@ -96,8 +97,33 @@ class IOFileDirectoryEntry extends DirectoryEntry {
     return files;
   }
 
-  bool hasImageFile(File file) {
+  bool _isImageFile(File file) {
     final String extension = p.extension(file.path).toLowerCase();
     return imageExtensions.contains(extension);
+  }
+
+  @override
+  Future<Stream<FileEntry>> listFilesAsStream() async {
+    final StreamController<FileEntry> controller = StreamController<FileEntry>();
+    try {
+      directory
+          .list(followLinks: false)
+          .listen(
+            (FileSystemEntity entity) {
+              if (entity is File && _isImageFile(entity)) {
+                controller.add(ImageFileEntry.fromFile(entity));
+              }
+            },
+            onDone: controller.close,
+            onError: (Object error) {
+              log('Error listing files in directory: $path, error: $error');
+              controller.addError(error);
+            },
+          );
+    } catch (e) {
+      log('Failed to list files in directory: $path, error: $e');
+      controller.addError(e);
+    }
+    return controller.stream;
   }
 }
