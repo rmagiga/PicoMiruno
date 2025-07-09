@@ -22,7 +22,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
   final DefaultCacheManager cacheManager = DefaultCacheManager();
 
   // 画像ごとのFutureをキャッシュ
-  final Map<int, Future<Uint8List>> _imageFutures = {};
+  final Map<int, Future<Uint8List>> _imageFutures = <int, Future<Uint8List>>{};
   // 直前の画像データを保持
   Uint8List? _lastImageBytes;
 
@@ -37,7 +37,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
   void _prefetchAround(int index) {
     // 現在、前、次の画像をプリフェッチ
-    for (final int i in [index - 1, index, index + 1]) {
+    for (final int i in <int>[index - 1, index, index + 1]) {
       if (i >= 0 && i < widget.fileEntries.length) {
         _imageFutures[i] ??= _getImageBytesWithCache(widget.fileEntries[i]);
       }
