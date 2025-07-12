@@ -1,6 +1,5 @@
 // file_entry_android.dart
 import 'dart:async';
-import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:docman/docman.dart';
