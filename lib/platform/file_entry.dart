@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../utils/logger.dart';
 import 'file_entry_android.dart';
 import 'file_entry_windows.dart';
 
@@ -41,7 +42,7 @@ mixin ThumbnailMixin on FileEntry {
       final Uint8List bytes = await readAsBytes();
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) {
-        log('Failed to decode image: $path');
+        logger.e('Failed to decode image: $path');
         throw Exception('画像のデコードに失敗しました');
       }
       final img.Image thumbnail = img.copyResize(image, width: size, height: size);

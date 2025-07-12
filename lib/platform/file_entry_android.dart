@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:docman/docman.dart';
 
+import '../utils/logger.dart';
 import 'file_entry.dart';
 
 class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
@@ -12,7 +13,7 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
   Future<DirectoryEntry> create(String path) async {
     final DocumentFile? documentFile = await DocumentFile.fromUri(path);
     if (documentFile == null || documentFile.isFile || !documentFile.exists) {
-      log('Document file does not exist or is not a directory: $path');
+      logger.e('Document file does not exist or is not a directory: $path');
       throw Exception('Document file does not exist: $path');
     }
     return DocumentFileDirectoryEntry(documentFile);
@@ -33,7 +34,7 @@ class DocumentFileDirectoryEntryFactory implements DirectoryEntryFactory {
 class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
   ImageDocumentFileEntry(this.documentFile) : path = documentFile.uri {
     if (!documentFile.isFile || !documentFile.exists) {
-      log('Not a file or does not exist: $path');
+      logger.e('Not a file or does not exist: $path');
       throw Exception('Not a file: $path');
     }
   }
@@ -49,7 +50,7 @@ class ImageDocumentFileEntry extends FileEntry with ThumbnailMixin {
   Future<Uint8List> readAsBytes() async {
     final Uint8List? bytes = await documentFile.read();
     if (bytes == null || bytes.isEmpty) {
-      log('Failed to read file: $path');
+      logger.e('Failed to read file: $path');
       throw Exception('Failed to read file: $path');
     }
     return bytes;
@@ -80,7 +81,7 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
     try {
       documentFiles = await documentFile.listDocuments(extensions: imageExtensions);
     } catch (e) {
-      log('Failed to list files in directory: $path, error: $e');
+      logger.e('Failed to list files in directory: $path, error: $e');
       throw Exception('Failed to list files in directory: $path, error: $e');
     }
     if (documentFiles.isEmpty) {
@@ -90,9 +91,6 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
       (DocumentFile a, DocumentFile b) => a.lastModified.compareTo(b.lastModified),
     );
 
-    for (final DocumentFile c in documentFiles) {
-      log('Document file: ${c.name}, last modified: ${c.lastModified}');
-    }
     final List<FileEntry> fileEntries =
         documentFiles.map((DocumentFile docFile) {
           return ImageDocumentFileEntry(docFile);
@@ -112,7 +110,7 @@ class DocumentFileDirectoryEntry extends DirectoryEntry {
             }
           },
           onError: (Object error) {
-            log('Error listing files in directory: $path, error: $error');
+            logger.e('Error listing files in directory: $path, error: $error');
             controller.addError(error);
           },
           onDone: () {

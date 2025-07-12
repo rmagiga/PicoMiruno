@@ -23,6 +23,7 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   quiver: ^3.2.2
   transparent_image: ^2.0.1
+  logger: ^2.6.0
 
 dev_dependencies:
   flutter_test:

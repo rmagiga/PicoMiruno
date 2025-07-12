@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/logger.dart';
 import 'file_entry.dart';
 
 class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
@@ -28,14 +29,14 @@ class IOFileDirectoryEntryFactory implements DirectoryEntryFactory {
 class ImageFileEntry extends FileEntry with ThumbnailMixin {
   ImageFileEntry(this.path) : file = File(path) {
     if (!file.existsSync()) {
-      log('File does not exist: $path');
+      logger.e('File does not exist: $path');
       throw Exception('File does not exist: $path');
     }
   }
 
   ImageFileEntry.fromFile(this.file) : path = file.path {
     if (!file.existsSync()) {
-      log('File does not exist: ${file.path}');
+      logger.e('File does not exist: ${file.path}');
       throw Exception('File does not exist: ${file.path}');
     }
   }
@@ -61,7 +62,7 @@ class ImageFileEntry extends FileEntry with ThumbnailMixin {
 class IOFileDirectoryEntry extends DirectoryEntry {
   IOFileDirectoryEntry(this.path) : directory = Directory(path) {
     if (!directory.existsSync()) {
-      log('Directory does not exist: $path');
+      logger.e('Directory does not exist: $path');
       throw Exception('Directory does not exist: $path');
     }
   }
@@ -116,12 +117,12 @@ class IOFileDirectoryEntry extends DirectoryEntry {
             },
             onDone: controller.close,
             onError: (Object error) {
-              log('Error listing files in directory: $path, error: $error');
+              logger.e('Error listing files in directory: $path, error: $error');
               controller.addError(error);
             },
           );
     } catch (e) {
-      log('Failed to list files in directory: $path, error: $e');
+      logger.e('Failed to list files in directory: $path, error: $e');
       controller.addError(e);
     }
     return controller.stream;
