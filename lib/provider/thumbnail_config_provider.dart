@@ -1,18 +1,35 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../constants/app_constants.dart';
 import '../infrastructure/setting.dart';
 
 class ThumbnailConfig {
-  const ThumbnailConfig({required this.stalePeriodDays, required this.maxDiskThumbnailCount});
+  const ThumbnailConfig({
+    required this.stalePeriodDays,
+    required this.maxDiskThumbnailCount,
+    required this.thumbnailDirectoryPath,
+  });
 
   final int stalePeriodDays;
   final int maxDiskThumbnailCount;
+  final String thumbnailDirectoryPath;
 
-  ThumbnailConfig copyWith({int? stalePeriodDays, int? maxDiskThumbnailCount}) => ThumbnailConfig(
+  ThumbnailConfig copyWith({
+    int? stalePeriodDays,
+    int? maxDiskThumbnailCount,
+    String? thumbnailDirectoryPath,
+  }) => ThumbnailConfig(
     stalePeriodDays: stalePeriodDays ?? this.stalePeriodDays,
     maxDiskThumbnailCount: maxDiskThumbnailCount ?? this.maxDiskThumbnailCount,
+    thumbnailDirectoryPath: thumbnailDirectoryPath ?? this.thumbnailDirectoryPath,
   );
+
+  Directory get thumbnailDirectory {
+    return Directory(thumbnailDirectoryPath);
+  }
 }
 
 class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
@@ -21,6 +38,7 @@ class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
         const ThumbnailConfig(
           stalePeriodDays: SettingDefaults.stalePeriodDays,
           maxDiskThumbnailCount: SettingDefaults.maxDiskThumbnailCount,
+          thumbnailDirectoryPath: SettingDefaults.thumbnailDirectoryPath,
         ),
       ) {
     _load();
@@ -35,9 +53,16 @@ class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
       Settings.maxDiskThumbnailCount,
       SettingDefaults.maxDiskThumbnailCount,
     );
+    final Directory cacheDir = await getTemporaryDirectory();
+    final String thumbnailDirectoryPath = await settingsStorage.getString(
+      Settings.thumbnailDirectoryPath,
+      cacheDir.path,
+    );
+
     state = ThumbnailConfig(
       stalePeriodDays: stalePeriodDays,
       maxDiskThumbnailCount: maxDiskThumbnailCount,
+      thumbnailDirectoryPath: thumbnailDirectoryPath,
     );
   }
 

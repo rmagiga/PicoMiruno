@@ -1,89 +1,94 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_constants.dart';
 import '../infrastructure/folders.dart';
 import '../platform/file_entry.dart';
+import '../provider/thumbnail_config_provider.dart';
 import '../utils/logger.dart';
 import 'image_grid_screen.dart';
 
-class FolderListScreen extends StatefulWidget {
-  const FolderListScreen({super.key});
+// Riverpod StateNotifier
+class DirectoryEntriesNotifier extends StateNotifier<List<DirectoryEntry>> {
+  DirectoryEntriesNotifier(this._factory, this._foldersRepository) : super(<DirectoryEntry>[]);
+  final DirectoryEntryFactory _factory;
+  final FoldersRepository _foldersRepository;
 
-  @override
-  State<FolderListScreen> createState() => _FolderListScreenState();
-}
-
-class _FolderListScreenState extends State<FolderListScreen> {
-  List<DirectoryEntry> _directoryEntries = <DirectoryEntry>[];
-  late Directory _cacheDir;
-  final DirectoryEntryFactory _factory = DirectoryEntryFactory();
-  final FoldersRepository _foldersRepository = SharedPreferencesFoldersRepository();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFolders();
-  }
-
-  Future<void> _loadFolders() async {
-    _cacheDir = await getTemporaryDirectory();
+  Future<void> loadFolders() async {
     final List<String> savedFolders = await _foldersRepository.loadFolders();
-
     final List<DirectoryEntry> directoryEntries = <DirectoryEntry>[];
     for (final String path in savedFolders) {
       try {
         final DirectoryEntry directoryEntry = await _factory.create(path);
         directoryEntries.add(directoryEntry);
       } catch (e) {
-        // エラーが発生した場合はログに出力し、フォルダをスキップ
         logger.w('Error loading directory entry for $path: $e');
       }
     }
-    setState(() {
-      _directoryEntries = directoryEntries;
-    });
+    state = directoryEntries;
   }
 
-  Future<void> _addFolder() async {
-    final DirectoryEntry? directoryEntry = await DirectoryEntryFactory().pickDirectory();
-
+  Future<void> addFolder(BuildContext context) async {
+    final DirectoryEntry? directoryEntry = await _factory.pickDirectory();
     if (directoryEntry == null) {
-      if (!mounted) {
+      if (!context.mounted) {
         return;
       }
-      // ユーザーがフォルダを選択しなかった場合の処理
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('フォルダが選択されませんでした')));
       return;
     }
+    state = <DirectoryEntry>[...state, directoryEntry];
+    await _foldersRepository.saveFolders(state.map((DirectoryEntry e) => e.path).toList());
+  }
 
-    setState(() {
-      _directoryEntries.add(directoryEntry);
-    });
-    await _foldersRepository.saveFolders(
-      _directoryEntries.map((DirectoryEntry entry) => entry.path).toList(),
-    );
+  Future<void> removeFolder(int index) async {
+    final List<DirectoryEntry> newList = <DirectoryEntry>[...state]..removeAt(index);
+    state = newList;
+    await _foldersRepository.saveFolders(state.map((DirectoryEntry e) => e.path).toList());
+  }
+}
+
+final StateNotifierProvider<DirectoryEntriesNotifier, List<DirectoryEntry>>
+directoryEntriesProvider = StateNotifierProvider<DirectoryEntriesNotifier, List<DirectoryEntry>>(
+  (StateNotifierProviderRef<DirectoryEntriesNotifier, List<DirectoryEntry>> ref) =>
+      DirectoryEntriesNotifier(DirectoryEntryFactory(), SharedPreferencesFoldersRepository()),
+);
+
+class FolderListScreen extends ConsumerStatefulWidget {
+  const FolderListScreen({super.key});
+
+  @override
+  ConsumerState<FolderListScreen> createState() => _FolderListScreenState();
+}
+
+class _FolderListScreenState extends ConsumerState<FolderListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await ref.read(directoryEntriesProvider.notifier).loadFolders();
   }
 
   void _openFolder(DirectoryEntry directoryEntry) {
+    final ThumbnailConfig thumbnailConfig = ref.read(thumbnailConfigProvider);
     Navigator.push(
       context,
       MaterialPageRoute<dynamic>(
         builder:
-            (BuildContext context) =>
-                ImageGridScreen(directoryEntry: directoryEntry, cacheDir: _cacheDir),
+            (BuildContext context) => ImageGridScreen(
+              directoryEntry: directoryEntry,
+              cacheDir: thumbnailConfig.thumbnailDirectory,
+            ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final List<DirectoryEntry> directoryEntries = ref.watch(directoryEntriesProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('フォルダ一覧'),
@@ -91,34 +96,30 @@ class _FolderListScreenState extends State<FolderListScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // 設定画面への遷移（後で画面を作成）
               Navigator.pushNamed(context, Routes.settings);
             },
           ),
         ],
       ),
       body: ListView.builder(
-        itemCount: _directoryEntries.length,
+        itemCount: directoryEntries.length,
         itemBuilder: (BuildContext context, int index) {
           return ListTile(
-            title: Text(_directoryEntries[index].viewPath),
+            title: Text(directoryEntries[index].viewPath),
             trailing: IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () async {
-                setState(() {
-                  _directoryEntries.removeAt(index);
-                });
-                await _foldersRepository.saveFolders(
-                  _directoryEntries.map((DirectoryEntry entry) => entry.path).toList(),
-                );
+                await ref.read(directoryEntriesProvider.notifier).removeFolder(index);
               },
             ),
-            onTap: () => _openFolder(_directoryEntries[index]),
+            onTap: () => _openFolder(directoryEntries[index]),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addFolder,
+        onPressed: () async {
+          await ref.read(directoryEntriesProvider.notifier).addFolder(context);
+        },
         tooltip: 'フォルダを追加',
         child: const Icon(Icons.add),
       ),
