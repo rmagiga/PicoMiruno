@@ -59,21 +59,25 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   Widget getImageSync(FileEntry fileEntry, int index) {
     final String imagePath = fileEntry.path;
     _imageFutures[index] ??= _getImageBytesWithCache(fileEntry);
+
+    Widget buildChild(AsyncSnapshot<Uint8List> snapshot) {
+      if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+        _lastImageBytes = snapshot.data;
+        return _buildPhotoView(snapshot.data!, imagePath, index);
+      } else if (snapshot.hasError) {
+        return const Icon(Icons.error, color: Colors.red);
+      } else if (snapshot.hasData) {
+        return _buildPhotoView(snapshot.data!, imagePath, index, isPlaceholder: true);
+      } else {
+        return const Center(child: CircularProgressIndicator());
+      }
+    }
+
     return FutureBuilder<Uint8List>(
       future: _imageFutures[index],
       initialData: _lastImageBytes,
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
-        Widget child;
-        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-          _lastImageBytes = snapshot.data;
-          child = _buildPhotoView(snapshot.data!, imagePath, index);
-        } else if (snapshot.hasError) {
-          child = const Icon(Icons.error, color: Colors.red);
-        } else if (snapshot.hasData) {
-          child = _buildPhotoView(snapshot.data!, imagePath, index, isPlaceholder: true);
-        } else {
-          child = const Center(child: CircularProgressIndicator());
-        }
+        final Widget child = buildChild(snapshot);
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           switchInCurve: Curves.easeIn,
