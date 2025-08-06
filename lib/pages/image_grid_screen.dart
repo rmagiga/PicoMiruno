@@ -33,9 +33,6 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
 
   Future<List<FileEntry>> _loadFiles() async {
     final List<FileEntry> files = await widget.directoryEntry.listFiles();
-    files.sort(
-      (FileEntry a, FileEntry b) => b.getLastModifiedTime().compareTo(a.getLastModifiedTime()),
-    );
     return files;
   }
 
