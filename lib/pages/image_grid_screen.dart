@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +7,13 @@ import '../constants/app_constants.dart';
 import '../platform/file_entry.dart';
 import '../provider/current_image_index_provider.dart';
 import '../provider/thumbnail_config_provider.dart';
+import '../service/file_loading_service.dart';
+import '../service/navigation_service.dart';
 import '../utils/thumbnail_service.dart';
+import '../widgets/image_grid_widget.dart';
 
+/// 画像グリッド表示画面
+/// SRP: 画面の状態管理とサービス間の調整のみを担当
 class ImageGridScreen extends ConsumerStatefulWidget {
   const ImageGridScreen({super.key, required this.directoryEntry, required this.cacheDir});
 
@@ -22,30 +26,40 @@ class ImageGridScreen extends ConsumerStatefulWidget {
 
 class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   late Future<List<FileEntry>> _filesFuture;
-  final double _itemWidth = 120;
-  final DirectoryEntryFactory factory = DirectoryEntryFactory();
+  late final IFileLoadingService _fileLoadingService;
+  late final INavigationService _navigationService;
+  late final IThumbnailService _thumbnailService;
 
   @override
   void initState() {
     super.initState();
+    _fileLoadingService = FileLoadingService();
+    _navigationService = NavigationService();
+    _initializeServices();
     _filesFuture = _loadFiles();
   }
 
-  Future<List<FileEntry>> _loadFiles() async {
-    final List<FileEntry> files = await widget.directoryEntry.listFiles();
-    return files;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ThumbnailConfig thumbnailConfig = ref.watch(thumbnailConfigProvider);
-    late final IThumbnailService thumbnailService = ThumbnailService(
+  void _initializeServices() {
+    final ThumbnailConfig thumbnailConfig = ref.read(thumbnailConfigProvider);
+    _thumbnailService = ThumbnailService(
       cacheDir: widget.cacheDir,
       thumbSize: ThumbnailConstants.thumbSize,
       stalePeriodDays: thumbnailConfig.stalePeriodDays,
       maxNrOfCacheObjects: thumbnailConfig.maxDiskThumbnailCount,
     );
+  }
 
+  Future<List<FileEntry>> _loadFiles() async {
+    return _fileLoadingService.loadFiles(widget.directoryEntry);
+  }
+
+  void _handleImageTap(List<FileEntry> files, int index) {
+    ref.read(currentImageIndexProvider.notifier).index = index;
+    _navigationService.navigateToFullScreenImage(context, files, index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.directoryEntry.name)),
       body: FutureBuilder<List<FileEntry>>(
@@ -58,57 +72,10 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
             return const Center(child: Text('画像がありません'));
           }
           final List<FileEntry> files = snapshot.data!;
-          return LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              final int crossAxisCount = (constraints.maxWidth / _itemWidth).floor().clamp(1, 10);
-              return GridView.builder(
-                shrinkWrap: true,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                ),
-                itemCount: files.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final FileEntry entry = files[index];
-                  return GestureDetector(
-                    onTap: () {
-                      ref.read(currentImageIndexProvider.notifier).index = index;
-
-                      Navigator.pushNamed(
-                        context,
-                        Routes.fullScreenImage,
-                        arguments: <String, Object>{'fileEntries': files, 'initialIndex': index},
-                      );
-                    },
-                    child: FutureBuilder<Uint8List>(
-                      future: thumbnailService.getThumbnail(entry),
-                      builder: (BuildContext context, AsyncSnapshot<Uint8List> snap) {
-                        if (snap.connectionState != ConnectionState.done) {
-                          return Container(
-                            color: Colors.grey[300],
-                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          );
-                        }
-                        if (snap.hasError || !snap.hasData) {
-                          return const Icon(Icons.broken_image, color: Colors.red);
-                        }
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            snap.data!,
-                            fit: BoxFit.cover,
-                            gaplessPlayback: true,
-                            cacheWidth: ThumbnailConstants.thumbSize,
-                            cacheHeight: ThumbnailConstants.thumbSize,
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              );
-            },
+          return ImageGridWidget(
+            files: files,
+            thumbnailService: _thumbnailService,
+            onImageTap: (int index) => _handleImageTap(files, index),
           );
         },
       ),

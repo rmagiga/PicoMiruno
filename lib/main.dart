@@ -44,7 +44,7 @@ class MyApp extends ConsumerWidget {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'PicoMiruno',
+      title: 'ミルノ',
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
       darkTheme: ThemeData.dark(),
       themeMode: themeMode,
