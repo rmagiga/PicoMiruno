@@ -78,11 +78,8 @@ class MyApp extends ConsumerWidget {
           settings.arguments,
           RouteArguments.fileEntries,
         );
-        final int initialIndex = getArgument<int>(settings.arguments, RouteArguments.initialIndex);
         return MaterialPageRoute<void>(
-          builder:
-              (BuildContext context) =>
-                  FullScreenImage(fileEntries: fileEntries, initialIndex: initialIndex),
+          builder: (BuildContext context) => FullScreenImage(fileEntries: fileEntries),
         );
     }
     return MaterialPageRoute<void>(builder: (BuildContext context) => const FolderListScreen());

@@ -2,41 +2,36 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 
 import '../platform/file_entry.dart';
+import '../provider/current_image_index_provider.dart';
 
-class FullScreenImage extends StatefulWidget {
-  const FullScreenImage({super.key, required this.fileEntries, required this.initialIndex});
+class FullScreenImage extends ConsumerStatefulWidget {
+  const FullScreenImage({super.key, required this.fileEntries});
 
   final List<FileEntry> fileEntries;
-  final int initialIndex;
 
   @override
-  State<FullScreenImage> createState() => _FullScreenImageState();
+  ConsumerState<FullScreenImage> createState() => _FullScreenImageState();
 }
 
-class _FullScreenImageState extends State<FullScreenImage> {
+class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   late PageController _pageController;
-  late int _currentIndex;
   final DefaultCacheManager cacheManager = DefaultCacheManager();
-
-  // 画像ごとのFutureをキャッシュ
   final Map<int, Future<Uint8List>> _imageFutures = <int, Future<Uint8List>>{};
-  // 直前の画像データを保持
   Uint8List? _lastImageBytes;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: _currentIndex);
-    // 初期表示時に前後画像もプリフェッチ
-    _prefetchAround(_currentIndex);
+    int index = ref.read(currentImageIndexProvider);
+    _pageController = PageController(initialPage: index);
+    _prefetchAround(index);
   }
 
   void _prefetchAround(int index) {
-    // 現在、前、次の画像をプリフェッチ
     for (final int i in <int>[index - 1, index, index + 1]) {
       if (i >= 0 && i < widget.fileEntries.length) {
         _imageFutures[i] ??= _getImageBytesWithCache(widget.fileEntries[i]);
@@ -51,7 +46,6 @@ class _FullScreenImageState extends State<FullScreenImage> {
   }
 
   Future<Uint8List> _getImageBytesWithCache(FileEntry fileEntry) async {
-    // メモリキャッシュ優先
     final String imagePath = fileEntry.path;
     final FileInfo? cachedFile = await cacheManager.getFileFromCache(imagePath);
     if (cachedFile != null && await cachedFile.file.exists()) {
@@ -62,31 +56,24 @@ class _FullScreenImageState extends State<FullScreenImage> {
     return bytes;
   }
 
-  // flutter_cache_managerの利用をやめ、ImageServiceのgetImageByteを使う
   Widget getImageSync(FileEntry fileEntry, int index) {
     final String imagePath = fileEntry.path;
-
-    // 画像ごとにFutureをキャッシュ
     _imageFutures[index] ??= _getImageBytesWithCache(fileEntry);
-
     return FutureBuilder<Uint8List>(
       future: _imageFutures[index],
-      initialData: _lastImageBytes, // 前回の画像をinitialDataに
+      initialData: _lastImageBytes,
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
         Widget child;
         if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-          // 新しい画像データを保持
           _lastImageBytes = snapshot.data;
           child = _buildPhotoView(snapshot.data!, imagePath, index);
         } else if (snapshot.hasError) {
           child = const Icon(Icons.error, color: Colors.red);
         } else if (snapshot.hasData) {
-          // 読み込み中は前回画像を表示
           child = _buildPhotoView(snapshot.data!, imagePath, index, isPlaceholder: true);
         } else {
           child = const Center(child: CircularProgressIndicator());
         }
-        // AnimatedSwitcherで画像切り替えをなめらかに
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           switchInCurve: Curves.easeIn,
@@ -124,7 +111,6 @@ class _FullScreenImageState extends State<FullScreenImage> {
           backgroundDecoration: const BoxDecoration(color: Colors.black),
           enableRotation: true,
         ),
-        // 左端スワイプ
         Align(
           alignment: Alignment.centerLeft,
           child: GestureDetector(
@@ -150,7 +136,6 @@ class _FullScreenImageState extends State<FullScreenImage> {
             child: const SizedBox(width: 40, height: double.infinity),
           ),
         ),
-        // 右端スワイプ
         Align(
           alignment: Alignment.centerRight,
           child: GestureDetector(
@@ -189,17 +174,16 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
   @override
   Widget build(BuildContext context) {
+    final int currentIndex = ref.watch(currentImageIndexProvider);
     return Scaffold(
-      appBar: AppBar(title: Text('${_currentIndex + 1} / ${widget.fileEntries.length}')),
+      appBar: AppBar(title: Text('${currentIndex + 1} / ${widget.fileEntries.length}')),
       body: PageView.builder(
         controller: _pageController,
         itemCount: widget.fileEntries.length,
         physics: const ClampingScrollPhysics(),
         onPageChanged: (int index) {
-          setState(() {
-            _currentIndex = index;
-            _prefetchAround(index); // スワイプ時に前後画像もプリフェッチ
-          });
+          ref.read(currentImageIndexProvider.notifier).index = index;
+          _prefetchAround(index);
         },
         itemBuilder: (BuildContext context, int index) {
           return Center(child: getImageSync(widget.fileEntries[index], index));

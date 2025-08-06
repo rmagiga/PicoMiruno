@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_constants.dart';
 import '../platform/file_entry.dart';
+import '../provider/current_image_index_provider.dart';
 import '../provider/thumbnail_config_provider.dart';
 import '../utils/thumbnail_service.dart';
 
@@ -28,7 +29,6 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
   void initState() {
     super.initState();
     _filesFuture = _loadFiles();
-    ref.read(thumbnailConfigProvider.notifier).loadFromStorage();
   }
 
   Future<List<FileEntry>> _loadFiles() async {
@@ -76,6 +76,8 @@ class _ImageGridScreenState extends ConsumerState<ImageGridScreen> {
                   final FileEntry entry = files[index];
                   return GestureDetector(
                     onTap: () {
+                      ref.read(currentImageIndexProvider.notifier).index = index;
+
                       Navigator.pushNamed(
                         context,
                         Routes.fullScreenImage,
