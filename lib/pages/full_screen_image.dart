@@ -26,7 +26,7 @@ class _FullScreenImageState extends ConsumerState<FullScreenImage> {
   @override
   void initState() {
     super.initState();
-    int index = ref.read(currentImageIndexProvider);
+    final int index = ref.read(currentImageIndexProvider);
     _pageController = PageController(initialPage: index);
     _prefetchAround(index);
   }
