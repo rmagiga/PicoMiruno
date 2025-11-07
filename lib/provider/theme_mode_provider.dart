@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../infrastructure/setting.dart';
 
-final StateNotifierProvider<ThemeModeNotifier, ThemeMode> themeModeProvider =
-    StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
-      (StateNotifierProviderRef<ThemeModeNotifier, ThemeMode> ref) => ThemeModeNotifier(),
-    );
+final NotifierProvider<ThemeModeNotifier, ThemeMode> themeModeProvider =
+    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
 
-class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
-    _loadThemeMode();
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() {
+    return ThemeMode.system;
   }
 
   Future<void> _loadThemeMode() async {

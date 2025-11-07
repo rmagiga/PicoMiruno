@@ -15,15 +15,16 @@ class ThumbnailConfig {
   );
 }
 
-class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
-  ThumbnailConfigNotifier()
-    : super(
-        const ThumbnailConfig(
-          stalePeriodDays: SettingDefaults.stalePeriodDays,
-          maxDiskThumbnailCount: SettingDefaults.maxDiskThumbnailCount,
-        ),
-      ) {
-    _load();
+final NotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig> thumbnailConfigProvider =
+    NotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig>(ThumbnailConfigNotifier.new);
+
+class ThumbnailConfigNotifier extends Notifier<ThumbnailConfig> {
+  @override
+  ThumbnailConfig build() {
+    return const ThumbnailConfig(
+      stalePeriodDays: SettingDefaults.stalePeriodDays,
+      maxDiskThumbnailCount: SettingDefaults.maxDiskThumbnailCount,
+    );
   }
 
   Future<void> _load() async {
@@ -55,9 +56,3 @@ class ThumbnailConfigNotifier extends StateNotifier<ThumbnailConfig> {
     await _load();
   }
 }
-
-final StateNotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig> thumbnailConfigProvider =
-    StateNotifierProvider<ThumbnailConfigNotifier, ThumbnailConfig>(
-      (StateNotifierProviderRef<ThumbnailConfigNotifier, ThumbnailConfig> ref) =>
-          ThumbnailConfigNotifier(),
-    );
